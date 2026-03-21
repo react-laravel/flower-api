@@ -51,7 +51,19 @@ trait ResourceController
     public function update(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
         $model = $this->findOrFail($id);
-        $model->update($request->validated());
+
+        // Dynamically resolve the Update form request and validate
+        $modelShortName = (new \ReflectionClass(static::getModelClass()))->getShortName();
+        $formRequestClass = "App\\Http\\Requests\\Update{$modelShortName}Request";
+
+        if (class_exists($formRequestClass)) {
+            $formRequest = app($formRequestClass);
+            $validated = $formRequest->validated();
+        } else {
+            $validated = $request->all();
+        }
+
+        $model->update($validated);
         return $this->success($model);
     }
 
