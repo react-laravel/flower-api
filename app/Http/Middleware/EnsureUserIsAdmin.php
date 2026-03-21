@@ -17,7 +17,7 @@ class EnsureUserIsAdmin
             return response()->json([
                 'success' => false,
                 'message' => '需要管理员权限',
-            ], 403);
+            ], Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);
