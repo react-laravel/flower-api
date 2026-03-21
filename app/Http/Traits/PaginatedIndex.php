@@ -2,6 +2,7 @@
 
 namespace App\Http\Traits;
 
+use App\ValueObjects\FlowerFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,24 @@ trait PaginatedIndex
         $query = $this->applyFilters($query, $request);
 
         $results = $query->paginate($perPage);
+
+        return $this->success([
+            'items' => $results->items(),
+            'total' => $results->total(),
+            'current_page' => $results->currentPage(),
+            'last_page' => $results->lastPage(),
+            'per_page' => $results->perPage(),
+        ]);
+    }
+
+    /**
+     * Build a paginated response using FlowerFilter value object.
+     */
+    protected function paginatedIndexWithFilter(Builder $query, FlowerFilter $filter): JsonResponse
+    {
+        $filter->apply($query);
+
+        $results = $query->paginate($filter->perPage);
 
         return $this->success([
             'items' => $results->items(),

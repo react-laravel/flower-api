@@ -7,38 +7,32 @@ use App\Http\Requests\StoreFlowerRequest;
 use App\Http\Requests\UpdateFlowerRequest;
 use App\Http\Traits\ApiResponse;
 use App\Http\Traits\PaginatedIndex;
+use App\Http\Traits\ResourceController;
 use App\Models\Flower;
-use Illuminate\Database\Eloquent\Builder;
+use App\ValueObjects\FlowerFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Flower controller with DRY-optimized CRUD via ResourceController trait.
+ */
 class FlowerController extends Controller
 {
-    use ApiResponse, PaginatedIndex;
+    use ApiResponse, PaginatedIndex, ResourceController;
+
+    protected static function getModelClass(): string
+    {
+        return Flower::class;
+    }
 
     public function index(Request $request): JsonResponse
     {
-        return $this->paginatedIndex(Flower::query()->orderBy('created_at', 'desc'), $request);
-    }
+        $filter = FlowerFilter::fromRequest($request);
 
-    protected function applyFilters(Builder $query, Request $request): Builder
-    {
-        if ($request->has('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->has('featured')) {
-            $query->where('featured', $request->featured === 'true');
-        }
-
-        if ($request->has('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('name_en', 'like', "%{$request->search}%");
-            });
-        }
-
-        return $query;
+        return $this->paginatedIndexWithFilter(
+            Flower::query()->orderBy('created_at', 'desc'),
+            $filter
+        );
     }
 
     public function store(StoreFlowerRequest $request): JsonResponse
@@ -48,26 +42,5 @@ class FlowerController extends Controller
         return $this->created($flower);
     }
 
-    public function show(int $id): JsonResponse
-    {
-        $flower = Flower::findOrFail($id);
-
-        return $this->success($flower);
-    }
-
-    public function update(UpdateFlowerRequest $request, int $id): JsonResponse
-    {
-        $flower = Flower::findOrFail($id);
-        $flower->update($request->validated());
-
-        return $this->success($flower);
-    }
-
-    public function destroy(int $id): JsonResponse
-    {
-        $flower = Flower::findOrFail($id);
-        $flower->delete();
-
-        return $this->deleted();
-    }
+    // show(), update(), destroy() are provided by ResourceController trait
 }

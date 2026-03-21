@@ -6,12 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\ResourceController;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Category controller with DRY-optimized CRUD via ResourceController trait.
+ */
 class CategoryController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, ResourceController;
+
+    protected static function getModelClass(): string
+    {
+        return Category::class;
+    }
 
     public function index(): JsonResponse
     {
@@ -27,26 +36,5 @@ class CategoryController extends Controller
         return $this->created($category);
     }
 
-    public function show(int $id): JsonResponse
-    {
-        $category = Category::findOrFail($id);
-
-        return $this->success($category);
-    }
-
-    public function update(UpdateCategoryRequest $request, int $id): JsonResponse
-    {
-        $category = Category::findOrFail($id);
-        $category->update($request->validated());
-
-        return $this->success($category);
-    }
-
-    public function destroy(int $id): JsonResponse
-    {
-        $category = Category::findOrFail($id);
-        $category->delete();
-
-        return $this->deleted();
-    }
+    // show(), update(), destroy() are provided by ResourceController trait
 }
