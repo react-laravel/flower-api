@@ -6,19 +6,23 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreFlowerRequest;
 use App\Http\Requests\UpdateFlowerRequest;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\PaginatedIndex;
 use App\Models\Flower;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class FlowerController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, PaginatedIndex;
 
     public function index(Request $request): JsonResponse
     {
-        $perPage = min((int) $request->get('per_page', 20), 100);
-        $query = Flower::query();
+        return $this->paginatedIndex(Flower::query()->orderBy('created_at', 'desc'), $request);
+    }
 
+    protected function applyFilters(Builder $query, Request $request): Builder
+    {
         if ($request->has('category') && $request->category !== 'all') {
             $query->where('category', $request->category);
         }
@@ -34,15 +38,7 @@ class FlowerController extends Controller
             });
         }
 
-        $flowers = $query->orderBy('created_at', 'desc')->paginate($perPage);
-
-        return $this->success([
-            'items' => $flowers->items(),
-            'total' => $flowers->total(),
-            'current_page' => $flowers->currentPage(),
-            'last_page' => $flowers->lastPage(),
-            'per_page' => $flowers->perPage(),
-        ]);
+        return $query;
     }
 
     public function store(StoreFlowerRequest $request): JsonResponse
