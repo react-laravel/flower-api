@@ -7,66 +7,88 @@ use App\Http\Traits\ApiResponse;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class ChatController extends Controller
 {
     use ApiResponse;
 
+    /**
+     * Maximum knowledge items to load per chat request.
+     */
+    private const MAX_KNOWLEDGE_ITEMS = 20;
+
+    /**
+     * Handle chat message with local knowledge base.
+     */
     public function chat(Request $request): JsonResponse
     {
+        $key = 'chat:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            $retryAfter = RateLimiter::availableIn($key);
+            return response()->json([
+                'error' => 'Too many requests. Please wait.',
+                'retry_after' => $retryAfter,
+            ], 429);
+        }
+        RateLimiter::hit($key, 60);
+
         $request->validate([
-            'message' => 'required|string',
+            'message' => 'required|string|max:500',
         ]);
 
-        $query = strtolower($request->message);
-        $bestMatch = null;
-        $highestScore = 0;
+        $message = $request->input('message');
+        $query = '%' . mb_strtolower($message) . '%';
 
-        $knowledgeItems = Knowledge::all();
+        // Use DB-level LIKE with limit — no PHP loops, no full table scan
+        $relevantKnowledge = Knowledge::where(function ($q) use ($query) {
+            $q->whereRaw('LOWER(question) LIKE ?', [$query])
+              ->orWhereRaw('LOWER(answer) LIKE ?', [$query]);
+        })->limit(self::MAX_KNOWLEDGE_ITEMS)->get(['id', 'question', 'answer']);
 
-        foreach ($knowledgeItems as $item) {
-            $question = strtolower($item->question);
-            $score = 0;
-
-            // Exact match
-            if ($question === $query) {
-                $score = 100;
-            }
-            // Contains match
-            elseif (str_contains($question, $query) || str_contains($query, $question)) {
-                $score = 80;
-            }
-            // Keyword match
-            else {
-                $queryWords = explode(' ', preg_replace('/\s+/', ' ', trim($query)));
-                $questionWords = explode(' ', preg_replace('/\s+/', ' ', trim($question)));
-                $matches = array_filter($queryWords, function ($w) use ($questionWords) {
-                    return count(array_filter($questionWords, fn($qw) => str_contains($qw, $w) || str_contains($w, $qw))) > 0;
-                });
-                $score = (count($matches) / count($queryWords)) * 60;
-            }
-
-            if ($score > $highestScore) {
-                $highestScore = $score;
-                $bestMatch = $item;
-            }
-        }
-
-        if ($bestMatch && $highestScore > 20) {
-            $answer = $bestMatch->answer;
-        } else {
-            $answer = "感谢您的咨询！您可能想了解：\n\n1. 鲜花如何保鲜？\n2. 玫瑰的花语是什么？\n3. 如何订花？\n4. 配送范围和时间？\n\n请告诉我您想了解的具体问题，我会尽力为您解答~ 🌸";
-        }
+        $reply = $this->generateReply($relevantKnowledge);
 
         return $this->success([
-            'reply' => $answer,
+            'reply' => $reply,
+            'sources' => $relevantKnowledge->pluck('question')->toArray(),
         ]);
     }
 
-    public function knowledge(): JsonResponse
+    /**
+     * Get knowledge base for context.
+     */
+    public function knowledge(Request $request): JsonResponse
     {
-        $knowledge = Knowledge::orderBy('category')->get();
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $page = max((int) $request->get('page', 1), 1);
 
-        return $this->success($knowledge);
+        $knowledge = Knowledge::query()
+            ->orderBy('id', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return $this->success([
+            'data' => $knowledge->items(),
+            'pagination' => [
+                'current_page' => $knowledge->currentPage(),
+                'last_page' => $knowledge->lastPage(),
+                'per_page' => $knowledge->perPage(),
+                'total' => $knowledge->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Generate reply from knowledge items.
+     */
+    private function generateReply($knowledge)
+    {
+        if ($knowledge->isEmpty()) {
+            return "抱歉，我没有找到相关信息。";
+        }
+
+        $first = $knowledge->first();
+        $excerpt = mb_substr($first->answer ?? $first->question, 0, 200);
+
+        return "找到以下信息：{$excerpt}" . (mb_strlen($first->answer ?? '') > 200 ? '...' : '');
     }
 }

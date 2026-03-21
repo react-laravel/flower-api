@@ -17,5 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Throwable $e, $request) {
+            if ($request->is('api/*') || $request->wantsJson()) {
+                $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+                $message = config('app.debug') ? $e->getMessage() : 'Server error';
+                return response()->json([
+                    'error' => $message,
+                    'type' => class_basename($e),
+                ], $status);
+            }
+        });
     })->create();

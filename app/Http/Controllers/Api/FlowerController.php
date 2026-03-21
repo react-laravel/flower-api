@@ -16,6 +16,9 @@ class FlowerController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $page = max((int) $request->get('page', 1), 1);
+
         $query = Flower::query();
 
         if ($request->has('category') && $request->category !== 'all') {
@@ -26,16 +29,26 @@ class FlowerController extends Controller
             $query->where('featured', $request->featured === 'true');
         }
 
-        if ($request->has('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('name_en', 'like', "%{$request->search}%");
+        // Search with length limit to prevent ReDoS
+        $search = mb_substr($request->get('search', ''), 0, 100);
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('name_en', 'like', "%{$search}%");
             });
         }
 
-        $flowers = $query->orderBy('created_at', 'desc')->get();
+        $flowers = $query->orderBy('id', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
-        return $this->success($flowers);
+        return $this->success([
+            'data' => $flowers->items(),
+            'pagination' => [
+                'current_page' => $flowers->currentPage(),
+                'last_page' => $flowers->lastPage(),
+                'per_page' => $flowers->perPage(),
+                'total' => $flowers->total(),
+            ],
+        ]);
     }
 
     public function store(StoreFlowerRequest $request): JsonResponse
