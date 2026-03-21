@@ -23,7 +23,7 @@ class FlowerController extends Controller
         }
 
         if ($request->has('featured')) {
-            $query->where('featured', $request->featured === 'true');
+            $query->where('featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
         }
 
         if ($request->has('search')) {
