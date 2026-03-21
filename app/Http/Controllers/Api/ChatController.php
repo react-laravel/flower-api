@@ -7,6 +7,7 @@ use App\Http\Traits\ApiResponse;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class ChatController extends Controller
 {
@@ -14,53 +15,78 @@ class ChatController extends Controller
 
     public function chat(Request $request): JsonResponse
     {
+        // Rate limiting: 10 requests per minute per IP
+        $key = 'chat:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            return response()->json([
+                'error' => 'Too many requests. Please wait.',
+                'retry_after' => RateLimiter::availableIn($key),
+            ], 429);
+        }
+        RateLimiter::hit($key, 60);
+
         $request->validate([
-            'message' => 'required|string',
+            'message' => 'required|string|max:500',
         ]);
 
-        $query = strtolower($request->message);
-        $bestMatch = null;
-        $highestScore = 0;
+        $message = $request->input('message');
 
-        $knowledgeItems = Knowledge::all();
+        // Use keyword search instead of all() to avoid OOM
+        $keywords = $this->extractKeywords($message);
+        $relevantKnowledge = $this->searchKnowledge($keywords);
 
-        foreach ($knowledgeItems as $item) {
-            $question = strtolower($item->question);
-            $score = 0;
-
-            // Exact match
-            if ($question === $query) {
-                $score = 100;
-            }
-            // Contains match
-            elseif (str_contains($question, $query) || str_contains($query, $question)) {
-                $score = 80;
-            }
-            // Keyword match
-            else {
-                $queryWords = explode(' ', preg_replace('/\s+/', ' ', trim($query)));
-                $questionWords = explode(' ', preg_replace('/\s+/', ' ', trim($question)));
-                $matches = array_filter($queryWords, function ($w) use ($questionWords) {
-                    return count(array_filter($questionWords, fn($qw) => str_contains($qw, $w) || str_contains($w, $qw))) > 0;
-                });
-                $score = (count($matches) / count($queryWords)) * 60;
-            }
-
-            if ($score > $highestScore) {
-                $highestScore = $score;
-                $bestMatch = $item;
-            }
-        }
-
-        if ($bestMatch && $highestScore > 20) {
-            $answer = $bestMatch->answer;
-        } else {
-            $answer = "感谢您的咨询！您可能想了解：\n\n1. 鲜花如何保鲜？\n2. 玫瑰的花语是什么？\n3. 如何订花？\n4. 配送范围和时间？\n\n请告诉我您想了解的具体问题，我会尽力为您解答~ 🌸";
-        }
+        $reply = $this->generateReply($message, $relevantKnowledge);
 
         return $this->success([
-            'reply' => $answer,
+            'reply' => $reply,
+            'sources' => $relevantKnowledge->pluck('question')->toArray(),
         ]);
+    }
+
+    /**
+     * Extract keywords from message.
+     */
+    private function extractKeywords(string $message): array
+    {
+        $stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'what', 'how', 'why', 'when', 'where', '?'];
+        $words = preg_split('/\s+/', strtolower($message));
+        return array_filter($words, fn($w) => strlen($w) > 2 && !in_array($w, $stopWords));
+    }
+
+    /**
+     * Search knowledge base with keywords (paginated/chunked).
+     */
+    private function searchKnowledge(array $keywords)
+    {
+        if (empty($keywords)) {
+            return collect([]);
+        }
+
+        $query = Knowledge::query();
+        foreach ($keywords as $keyword) {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('question', 'like', "%{$keyword}%")
+                  ->orWhere('answer', 'like', "%{$keyword}%");
+            });
+        }
+
+        // Limit results to 20 to avoid large payloads
+        return $query->limit(20)->get();
+    }
+
+    /**
+     * Generate reply based on message and knowledge.
+     */
+    private function generateReply(string $message, $knowledge)
+    {
+        if ($knowledge->isEmpty()) {
+            return "抱歉，我没有找到相关信息。";
+        }
+
+        $first = $knowledge->first();
+        $excerpt = mb_substr($first->answer ?? $first->question, 0, 200);
+
+        return "找到以下信息：{$excerpt}...";
     }
 
     public function knowledge(): JsonResponse
