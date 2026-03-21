@@ -20,7 +20,7 @@ class SiteSettingController extends Controller
         $key = $request->query('key');
 
         if ($key) {
-            $value = SiteSetting::get($key);
+            $value = SiteSetting::getValue($key);
             return $this->success($value);
         }
 
@@ -38,7 +38,7 @@ class SiteSettingController extends Controller
             'value' => 'nullable|string',
         ]);
 
-        SiteSetting::set($request->key, $request->value);
+        SiteSetting::setValue($request->key, $request->value);
 
         return $this->success(null, '设置已更新');
     }
@@ -53,7 +53,7 @@ class SiteSettingController extends Controller
         ]);
 
         foreach ($settings['settings'] as $key => $value) {
-            SiteSetting::set($key, $value);
+            SiteSetting::setValue($key, $value);
         }
 
         return $this->success(null, '设置已批量更新');
