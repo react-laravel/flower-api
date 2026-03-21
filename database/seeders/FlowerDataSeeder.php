@@ -14,8 +14,22 @@ class FlowerDataSeeder extends Seeder
 
     public function run(): void
     {
-        // Categories
-        $categories = [
+        foreach (self::getCategories() as $cat) {
+            Category::updateOrCreate(['slug' => $cat['slug']], $cat);
+        }
+
+        foreach (self::getFlowers() as $flower) {
+            Flower::updateOrCreate(['name' => $flower['name']], $flower);
+        }
+
+        foreach (self::getKnowledge() as $item) {
+            Knowledge::updateOrCreate(['question' => $item['question']], $item);
+        }
+    }
+
+    private static function getCategories(): array
+    {
+        return [
             ['name' => '玫瑰', 'slug' => 'rose', 'icon' => '🌹', 'description' => '爱情之花'],
             ['name' => '百合', 'slug' => 'lily', 'icon' => '🌸', 'description' => '纯洁高雅'],
             ['name' => '康乃馨', 'slug' => 'carnation', 'icon' => '🌺', 'description' => '母爱之花'],
@@ -23,13 +37,11 @@ class FlowerDataSeeder extends Seeder
             ['name' => '郁金香', 'slug' => 'tulip', 'icon' => '🌷', 'description' => '高贵典雅'],
             ['name' => '绿植', 'slug' => 'plant', 'icon' => '🌿', 'description' => '清新自然'],
         ];
+    }
 
-        foreach ($categories as $cat) {
-            Category::updateOrCreate(['slug' => $cat['slug']], $cat);
-        }
-
-        // Flowers
-        $flowers = [
+    private static function getFlowers(): array
+    {
+        return [
             [
                 'name' => '红玫瑰花束',
                 'name_en' => 'Red Rose Bouquet',
@@ -136,13 +148,11 @@ class FlowerDataSeeder extends Seeder
                 'featured' => false,
             ],
         ];
+    }
 
-        foreach ($flowers as $flower) {
-            Flower::updateOrCreate(['name' => $flower['name']], $flower);
-        }
-
-        // Knowledge
-        $knowledge = [
+    private static function getKnowledge(): array
+    {
+        return [
             [
                 'question' => '鲜花如何保鲜？',
                 'answer' => "1. 每天换水，保持水质清洁\n2. 斜剪花茎，帮助花朵吸水\n3. 避免阳光直射和空调直吹\n4. 可以在水中加入少量糖或保鲜剂\n5. 及时摘除枯萎的花瓣和叶子",
@@ -174,9 +184,5 @@ class FlowerDataSeeder extends Seeder
                 'category' => 'payment',
             ],
         ];
-
-        foreach ($knowledge as $item) {
-            Knowledge::updateOrCreate(['question' => $item['question']], $item);
-        }
     }
 }
