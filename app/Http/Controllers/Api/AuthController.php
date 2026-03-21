@@ -86,10 +86,10 @@ class AuthController extends Controller
     /**
      * Check if user is admin
      */
-    public function isAdmin(Request $request): JsonResponse
+    public function isAdmin(): JsonResponse
     {
         return $this->success([
-            'is_admin' => $request->user()->is_admin,
+            'is_admin' => auth()->user()->is_admin,
         ]);
     }
 }
