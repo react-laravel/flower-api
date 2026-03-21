@@ -82,8 +82,8 @@ class ChatControllerTest extends TestCase
 
         $response = $this->postJson('/api/chat', ['message' => '完全无关的问题']);
 
-//        $response->assertOk();
-//        $this->assertStringContainsString('感谢您的咨询', $response->json('data.reply'));
+        $response->assertOk();
+        $this->assertStringContainsString('感谢您的咨询', $response->json('data.reply'));
     }
 
     public function test_chat_is_case_insensitive(): void
