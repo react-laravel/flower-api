@@ -22,6 +22,8 @@ class KnowledgeController extends Controller
 
     public function store(StoreKnowledgeRequest $request): JsonResponse
     {
+        $this->authorize('create', Knowledge::class);
+
         $knowledge = Knowledge::create($request->validated());
 
         return $this->created($knowledge);
@@ -31,12 +33,17 @@ class KnowledgeController extends Controller
     {
         $knowledge = Knowledge::findOrFail($id);
 
+        $this->authorize('view', $knowledge);
+
         return $this->success($knowledge);
     }
 
     public function update(UpdateKnowledgeRequest $request, int $id): JsonResponse
     {
         $knowledge = Knowledge::findOrFail($id);
+
+        $this->authorize('update', $knowledge);
+
         $knowledge->update($request->validated());
 
         return $this->success($knowledge);
@@ -45,6 +52,9 @@ class KnowledgeController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $knowledge = Knowledge::findOrFail($id);
+
+        $this->authorize('delete', $knowledge);
+
         $knowledge->delete();
 
         return $this->deleted();

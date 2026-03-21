@@ -7,6 +7,7 @@ use App\Http\Requests\StoreFlowerRequest;
 use App\Http\Requests\UpdateFlowerRequest;
 use App\Http\Traits\ApiResponse;
 use App\Models\Flower;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,8 @@ class FlowerController extends Controller
 
     public function store(StoreFlowerRequest $request): JsonResponse
     {
+        $this->authorize('create', Flower::class);
+
         $flower = Flower::create($request->validated());
 
         return $this->created($flower);
@@ -49,12 +52,17 @@ class FlowerController extends Controller
     {
         $flower = Flower::findOrFail($id);
 
+        $this->authorize('view', $flower);
+
         return $this->success($flower);
     }
 
     public function update(UpdateFlowerRequest $request, int $id): JsonResponse
     {
         $flower = Flower::findOrFail($id);
+
+        $this->authorize('update', $flower);
+
         $flower->update($request->validated());
 
         return $this->success($flower);
@@ -63,6 +71,9 @@ class FlowerController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $flower = Flower::findOrFail($id);
+
+        $this->authorize('delete', $flower);
+
         $flower->delete();
 
         return $this->deleted();

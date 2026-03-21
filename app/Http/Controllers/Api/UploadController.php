@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
 class UploadController extends Controller
@@ -14,6 +15,10 @@ class UploadController extends Controller
 
     public function upload(Request $request): JsonResponse
     {
+        if (!Gate::allows('upload')) {
+            return $this->error('需要管理员权限', 403);
+        }
+
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
@@ -37,6 +42,10 @@ class UploadController extends Controller
 
     public function delete(Request $request): JsonResponse
     {
+        if (!Gate::allows('upload.delete')) {
+            return $this->error('需要管理员权限', 403);
+        }
+
         $request->validate([
             'path' => 'required|string',
         ]);

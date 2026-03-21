@@ -33,6 +33,8 @@ class SiteSettingController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
+        $this->authorize('update', SiteSetting::class);
+
         $request->validate([
             'key' => 'required|string',
             'value' => 'nullable|string',
@@ -48,6 +50,8 @@ class SiteSettingController extends Controller
      */
     public function batchUpdate(Request $request): JsonResponse
     {
+        $this->authorize('update', SiteSetting::class);
+
         $settings = $request->validate([
             'settings' => 'required|array',
         ]);
