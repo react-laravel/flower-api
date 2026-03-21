@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\ReliableOperations;
 use App\Models\SiteSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SiteSettingController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, ReliableOperations;
 
     /**
      * Get all settings or a specific setting
@@ -29,7 +31,7 @@ class SiteSettingController extends Controller
     }
 
     /**
-     * Update or create a setting
+     * Update or create a setting with transaction and locking
      */
     public function update(Request $request): JsonResponse
     {
@@ -38,24 +40,64 @@ class SiteSettingController extends Controller
             'value' => 'nullable|string',
         ]);
 
-        SiteSetting::set($request->key, $request->value);
+        $lockKey = 'sitesetting:' . $request->key;
 
-        return $this->success(null, '设置已更新');
+        try {
+            return $this->lock()->withLock(
+                $lockKey,
+                function () use ($request) {
+                    return $this->withTransaction(function () use ($request) {
+                        SiteSetting::set($request->key, $request->value);
+
+                        Log::info("SiteSettingController: Updated setting", [
+                            'key' => $request->key,
+                        ]);
+
+                        return $this->success(null, '设置已更新');
+                    });
+                }
+            );
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+            return $this->error('操作太频繁，请稍后重试', 409);
+        }
     }
 
     /**
-     * Batch update settings
+     * Batch update settings with transaction and idempotency
      */
     public function batchUpdate(Request $request): JsonResponse
     {
+        // Check idempotency
+        $idempotencyCheck = $this->checkIdempotency($request);
+        if ($idempotencyCheck !== null) {
+            return $idempotencyCheck;
+        }
+
         $settings = $request->validate([
             'settings' => 'required|array',
         ]);
 
-        foreach ($settings['settings'] as $key => $value) {
-            SiteSetting::set($key, $value);
-        }
+        try {
+            $response = $this->withTransaction(function () use ($settings) {
+                foreach ($settings['settings'] as $key => $value) {
+                    SiteSetting::set($key, $value);
+                }
 
-        return $this->success(null, '设置已批量更新');
+                Log::info("SiteSettingController: Batch updated settings", [
+                    'count' => count($settings['settings']),
+                ]);
+
+                return $this->success(null, '设置已批量更新');
+            });
+
+            $this->markIdempotencyProcessed($request, $response);
+
+            return $response;
+        } catch (\Exception $e) {
+            Log::error("SiteSettingController: Batch update failed", [
+                'error' => $e->getMessage(),
+            ]);
+            return $this->error('批量更新失败：' . $e->getMessage(), 500);
+        }
     }
 }
