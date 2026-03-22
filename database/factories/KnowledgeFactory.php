@@ -6,18 +6,24 @@ use App\Models\Knowledge;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Knowledge>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Knowledge>
  */
 class KnowledgeFactory extends Factory
 {
     protected $model = Knowledge::class;
 
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
+        $categories = ['flower_meaning', 'care_tips', 'ordering', 'delivery', 'general'];
         return [
-            'question' => $this->faker->sentence(8) . '？',
-            'answer' => $this->faker->paragraph(3),
-            'category' => $this->faker->randomElement(['花语', '养护', '配送', '订购', '节日']),
+            'question' => $this->faker->sentence() . '?',
+            'answer' => $this->faker->paragraph(),
+            'category' => $this->faker->randomElement($categories),
         ];
     }
 }
