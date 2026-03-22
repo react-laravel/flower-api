@@ -5,57 +5,44 @@ namespace Tests\Feature;
 use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class SiteSettingControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User $admin;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->admin = User::factory()->create(['is_admin' => true]);
-    }
-
     public function test_index_returns_all_settings(): void
     {
-        SiteSetting::factory()->count(3)->create();
+        SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Shop']);
+        SiteSetting::create(['key' => 'tagline', 'value' => 'Beautiful']);
 
         $response = $this->getJson('/api/settings');
 
         $response->assertOk()
             ->assertJson(['success' => true])
-            ->assertJsonStructure(['success', 'data']);
-        $this->assertCount(3, $response->json('data'));
+            ->assertJsonPath('data.site_name', 'Flower Shop')
+            ->assertJsonPath('data.tagline', 'Beautiful');
     }
 
-    public function test_index_returns_settings_as_key_value_pairs(): void
+    public function test_index_returns_empty_object_when_no_settings(): void
     {
-        SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Shop']);
-        SiteSetting::create(['key' => 'contact_email', 'value' => 'hello@flower.com']);
-
         $response = $this->getJson('/api/settings');
 
-        $response->assertOk();
-        $data = $response->json('data');
-        $this->assertEquals('Flower Shop', $data['site_name']);
-        $this->assertEquals('hello@flower.com', $data['contact_email']);
+        $response->assertOk()
+            ->assertJson(['success' => true, 'data' => []]);
     }
 
-    public function test_index_returns_single_setting_by_key(): void
+    public function test_index_returns_specific_setting_by_key(): void
     {
-        SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Shop']);
+        SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Store']);
 
         $response = $this->getJson('/api/settings?key=site_name');
 
         $response->assertOk()
-            ->assertJson(['success' => true, 'data' => 'Flower Shop']);
+            ->assertJson(['success' => true, 'data' => 'Flower Store']);
     }
 
-    public function test_index_returns_null_for_missing_key(): void
+    public function test_index_returns_null_for_nonexistent_key(): void
     {
         $response = $this->getJson('/api/settings?key=nonexistent');
 
@@ -65,64 +52,83 @@ class SiteSettingControllerTest extends TestCase
 
     public function test_update_creates_or_updates_setting(): void
     {
-        Sanctum::actingAs($this->admin);
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
 
-        $response = $this->putJson('/api/settings', [
-            'key' => 'site_name',
-            'value' => 'My Flower Shop',
-        ]);
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->putJson('/api/settings', [
+                'key' => 'site_name',
+                'value' => 'New Flower Shop',
+            ]);
 
         $response->assertOk()
             ->assertJson(['success' => true, 'message' => '设置已更新']);
-        $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'My Flower Shop']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'New Flower Shop']);
     }
 
-    public function test_update_updates_existing_setting(): void
+    public function test_update_requires_authentication(): void
     {
-        Sanctum::actingAs($this->admin);
-        SiteSetting::create(['key' => 'site_name', 'value' => 'Old Name']);
-
-        $response = $this->putJson('/api/settings', [
-            'key' => 'site_name',
-            'value' => 'New Name',
-        ]);
-
-        $response->assertOk();
-        $this->assertEquals(1, SiteSetting::where('key', 'site_name')->where('value', 'New Name')->count());
+        $response = $this->putJson('/api/settings', ['key' => 'site_name', 'value' => 'Test']);
+        $response->assertStatus(401);
     }
 
-    public function test_update_requires_key_field(): void
+    public function test_update_requires_key(): void
     {
-        Sanctum::actingAs($this->admin);
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
 
-        $response = $this->putJson('/api/settings', ['value' => 'Test']);
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->putJson('/api/settings', ['value' => 'Test']);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['key']);
     }
 
+    public function test_update_accepts_null_value(): void
+    {
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->putJson('/api/settings', ['key' => 'nullable_key', 'value' => null]);
+
+        $response->assertOk();
+    }
+
     public function test_batch_update_updates_multiple_settings(): void
     {
-        Sanctum::actingAs($this->admin);
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
 
-        $response = $this->putJson('/api/settings/batch', [
-            'settings' => [
-                'site_name' => 'Flower Shop',
-                'contact_email' => 'hello@flower.com',
-            ],
-        ]);
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->postJson('/api/settings/batch', [
+                'settings' => [
+                    'site_name' => 'Shop A',
+                    'tagline' => 'Fresh Flowers',
+                ],
+            ]);
 
         $response->assertOk()
             ->assertJson(['success' => true, 'message' => '设置已批量更新']);
-        $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'Flower Shop']);
-        $this->assertDatabaseHas('site_settings', ['key' => 'contact_email', 'value' => 'hello@flower.com']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'Shop A']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'tagline', 'value' => 'Fresh Flowers']);
+    }
+
+    public function test_batch_update_requires_authentication(): void
+    {
+        $response = $this->postJson('/api/settings/batch', [
+            'settings' => ['key' => 'value'],
+        ]);
+        $response->assertStatus(401);
     }
 
     public function test_batch_update_requires_settings_array(): void
     {
-        Sanctum::actingAs($this->admin);
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
 
-        $response = $this->putJson('/api/settings/batch', []);
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->postJson('/api/settings/batch', []);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['settings']);

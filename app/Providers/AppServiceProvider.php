@@ -2,13 +2,32 @@
 
 namespace App\Providers;
 
+use App\Models\Category;
+use App\Models\Flower;
+use App\Models\Knowledge;
+use App\Models\SiteSetting;
+use App\Policies\CategoryPolicy;
+use App\Policies\FlowerPolicy;
+use App\Policies\KnowledgePolicy;
+use App\Policies\SiteSettingPolicy;
+use App\Policies\UploadPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Support\Facades\Log;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
+     */
+    protected array $policies = [
+        Flower::class => FlowerPolicy::class,
+        Category::class => CategoryPolicy::class,
+        Knowledge::class => KnowledgePolicy::class,
+        SiteSetting::class => SiteSettingPolicy::class,
+    ];
+
     /**
      * Register any application services.
      */
@@ -22,21 +41,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Set default database query timeout (in seconds)
-        // Prevents slow queries from hanging indefinitely
-        $queryTimeout = (int) env('DB_QUERY_TIMEOUT', 10);
+        // Register policies
+        foreach ($this->policies as $model => $policy) {
+            Gate::policy($model, $policy);
+        }
 
-        DB::connection()->getPdo()?->setAttribute(\PDO::ATTR_TIMEOUT, $queryTimeout);
-
-        // Log slow queries (> 1 second) for monitoring
-        DB::listen(function (QueryExecuted $query) use ($queryTimeout) {
-            if ($query->time > 1000) { // > 1 second
-                Log::warning('Slow query detected', [
-                    'sql' => $query->sql,
-                    'bindings' => $query->bindings,
-                    'time_ms' => $query->time,
-                ]);
-            }
-        });
+        // Register UploadPolicy for non-model authorization
+        Gate::define('upload', [UploadPolicy::class, 'create']);
+        Gate::define('upload.delete', [UploadPolicy::class, 'delete']);
     }
 }

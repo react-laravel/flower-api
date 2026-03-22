@@ -22,6 +22,8 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request): JsonResponse
     {
+        $this->authorize('create', Category::class);
+
         $category = Category::create($request->validated());
 
         return $this->created($category);
@@ -31,12 +33,17 @@ class CategoryController extends Controller
     {
         $category = Category::findOrFail($id);
 
+        $this->authorize('view', $category);
+
         return $this->success($category);
     }
 
     public function update(UpdateCategoryRequest $request, int $id): JsonResponse
     {
         $category = Category::findOrFail($id);
+
+        $this->authorize('update', $category);
+
         $category->update($request->validated());
 
         return $this->success($category);
@@ -45,6 +52,9 @@ class CategoryController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $category = Category::findOrFail($id);
+
+        $this->authorize('delete', $category);
+
         $category->delete();
 
         return $this->deleted();

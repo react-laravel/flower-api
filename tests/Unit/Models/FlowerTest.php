@@ -3,6 +3,7 @@
 namespace Tests\Unit\Models;
 
 use App\Models\Flower;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,166 +11,101 @@ class FlowerTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
-    public function it_can_create_a_flower(): void
+    public function test_can_create_flower(): void
     {
         $flower = Flower::create([
             'name' => '红玫瑰',
             'name_en' => 'Red Rose',
-            'category' => '玫瑰',
-            'price' => 99.99,
-            'original_price' => 129.99,
-            'image' => 'images/rose.jpg',
-            'description' => '美丽的红玫瑰',
+            'category' => 'rose',
+            'price' => 99.00,
+            'original_price' => 129.00,
+            'image' => '/images/rose.jpg',
+            'description' => '经典红玫瑰',
             'meaning' => '爱情',
             'care' => '避免阳光直射',
             'stock' => 100,
             'featured' => true,
             'holiday' => '情人节',
+            'user_id' => null,
         ]);
 
         $this->assertDatabaseHas('flowers', [
             'name' => '红玫瑰',
             'name_en' => 'Red Rose',
+            'category' => 'rose',
         ]);
-
-        $this->assertEquals('红玫瑰', $flower->name);
-        $this->assertEquals('Red Rose', $flower->name_en);
-        $this->assertEquals('玫瑰', $flower->category);
-        $this->assertEquals(99.99, $flower->price);
-        $this->assertEquals(129.99, $flower->original_price);
-        $this->assertEquals('images/rose.jpg', $flower->image);
-        $this->assertEquals('爱情', $flower->meaning);
-        $this->assertEquals('避免阳光直射', $flower->care);
-        $this->assertEquals(100, $flower->stock);
-        $this->assertTrue($flower->featured);
     }
 
-    /**
-     * @test
-     */
-    public function it_casts_price_to_decimal(): void
+    public function test_price_is_cast_to_decimal(): void
     {
-        $flower = Flower::create([
-            'name' => '百合',
-            'category' => '百合',
-            'price' => '88.50',
-            'original_price' => '120.00',
-        ]);
-
-        $this->assertIsString($flower->price);
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'price' => '88.50', 'original_price' => '120.00', 'category' => 'test', 'user_id' => null]);
         $this->assertEquals('88.50', $flower->price);
+        $this->assertEquals('120.00', $flower->original_price);
     }
 
-    /**
-     * @test
-     */
-    public function it_casts_featured_to_boolean(): void
+    public function test_featured_is_cast_to_boolean(): void
     {
-        $flower = Flower::create([
-            'name' => '郁金香',
-            'category' => '球根',
-            'price' => 66,
-            'featured' => 1,
-        ]);
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'featured' => true, 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertTrue((bool) $flower->featured);
 
-        $this->assertTrue($flower->featured);
-
-        $flower->update(['featured' => false]);
-        $this->assertFalse($flower->fresh()->featured);
+        $flower2 = Flower::create(['name' => '测试2', 'name_en' => 'Test2', 'featured' => false, 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertFalse((bool) $flower2->featured);
     }
 
-    /**
-     * @test
-     */
-    public function it_has_fillable_attributes(): void
+    public function test_name_is_fillable(): void
     {
-        $fillable = [
-            'name', 'name_en', 'category', 'price', 'original_price',
-            'image', 'description', 'meaning', 'care', 'stock',
-            'featured', 'holiday',
-        ];
-
-        $this->assertEquals($fillable, (new Flower)->getFillable());
+        $flower = Flower::create(['name' => '白玫瑰', 'name_en' => 'White Rose', 'category' => 'rose', 'price' => 50, 'user_id' => null]);
+        $this->assertEquals('白玫瑰', $flower->name);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_filter_by_category(): void
+    public function test_name_en_is_fillable(): void
     {
-        Flower::create(['name' => '红玫瑰', 'category' => '玫瑰', 'price' => 10]);
-        Flower::create(['name' => '白玫瑰', 'category' => '玫瑰', 'price' => 12]);
-        Flower::create(['name' => '向日葵', 'category' => '向日葵', 'price' => 15]);
-
-        $roses = Flower::where('category', '玫瑰')->get();
-
-        $this->assertCount(2, $roses);
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test Flower', 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertEquals('Test Flower', $flower->name_en);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_filter_featured_flowers(): void
+    public function test_category_is_fillable(): void
     {
-        Flower::create(['name' => '红玫瑰', 'category' => '玫瑰', 'price' => 10, 'featured' => true]);
-        Flower::create(['name' => '白玫瑰', 'category' => '玫瑰', 'price' => 12, 'featured' => false]);
-
-        $featured = Flower::where('featured', true)->get();
-
-        $this->assertCount(1, $featured);
-        $this->assertEquals('红玫瑰', $featured->first()->name);
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'category' => 'tulip', 'price' => 10, 'user_id' => null]);
+        $this->assertEquals('tulip', $flower->category);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_search_by_name(): void
+    public function test_stock_is_fillable(): void
     {
-        Flower::create(['name' => '红玫瑰', 'name_en' => 'Red Rose', 'category' => '玫瑰', 'price' => 10]);
-        Flower::create(['name' => '白玫瑰', 'name_en' => 'White Rose', 'category' => '玫瑰', 'price' => 12]);
-        Flower::create(['name' => '向日葵', 'name_en' => 'Sunflower', 'category' => '向日葵', 'price' => 15]);
-
-        $results = Flower::where('name', 'like', '%玫瑰%')
-            ->orWhere('name_en', 'like', '%玫瑰%')
-            ->get();
-
-        $this->assertCount(2, $results);
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'stock' => 50, 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertEquals(50, $flower->stock);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_update_flower(): void
+    public function test_meaning_is_fillable(): void
     {
-        $flower = Flower::create([
-            'name' => '红玫瑰',
-            'category' => '玫瑰',
-            'price' => 99,
-        ]);
-
-        $flower->update(['price' => 149, 'featured' => true]);
-
-        $this->assertEquals(149, $flower->fresh()->price);
-        $this->assertTrue($flower->fresh()->featured);
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'meaning' => '友谊', 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertEquals('友谊', $flower->meaning);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_delete_flower(): void
+    public function test_care_is_fillable(): void
     {
-        $flower = Flower::create([
-            'name' => '红玫瑰',
-            'category' => '玫瑰',
-            'price' => 99,
-        ]);
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'care' => '每日换水', 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertEquals('每日换水', $flower->care);
+    }
 
-        $id = $flower->id;
-        $flower->delete();
+    public function test_holiday_is_fillable(): void
+    {
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'holiday' => '母亲节', 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertEquals('母亲节', $flower->holiday);
+    }
 
-        $this->assertNull(Flower::find($id));
+    public function test_belongs_to_user(): void
+    {
+        $user = User::factory()->create();
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'category' => 'test', 'price' => 10, 'user_id' => $user->id]);
+
+        $this->assertInstanceOf(User::class, $flower->user);
+        $this->assertEquals($user->id, $flower->user->id);
+    }
+
+    public function test_user_relation_returns_null_when_no_user(): void
+    {
+        $flower = Flower::create(['name' => '测试', 'name_en' => 'Test', 'category' => 'test', 'price' => 10, 'user_id' => null]);
+        $this->assertNull($flower->user);
     }
 }

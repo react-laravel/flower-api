@@ -7,31 +7,32 @@ use App\Http\Traits\ApiResponse;
 use App\Models\SiteSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 class SiteSettingController extends Controller
 {
     use ApiResponse;
 
-    private const MAX_KEY_LENGTH = 128;
-    private const MAX_BATCH_SIZE = 50;
-
     /**
      * Get all settings or a specific setting
+     * Note: only returns non-sensitive public settings via the bulk endpoint.
+     * Sensitive keys (password, secret, key, token) require admin auth.
      */
     public function index(Request $request): JsonResponse
     {
         $key = $request->query('key');
 
         if ($key) {
-            $value = SiteSetting::get($key);
+            $value = SiteSetting::getValue($key);
             return $this->success($value);
         }
 
-        $settings = Cache::remember('site_settings_all', 300, function () {
-            return SiteSetting::all()->pluck('value', 'key');
-        });
+        // Filter out potentially sensitive keys from public response
+        $sensitivePatterns = ['password', 'secret', 'key', 'token', 'credential', 'auth'];
+        $settings = SiteSetting::all()->pluck('value', 'key')
+            ->filter(fn($value, $settingKey) => !preg_match(
+                '/(' . implode('|', $sensitivePatterns) . ')/i',
+                $settingKey
+            ));
 
         return $this->success($settings);
     }
@@ -41,15 +42,14 @@ class SiteSettingController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
+        $this->authorize('update', SiteSetting::class);
+
         $request->validate([
-            'key' => 'required|string|max:' . self::MAX_KEY_LENGTH,
+            'key' => 'required|string',
             'value' => 'nullable|string',
         ]);
 
-        SiteSetting::set($request->key, $request->value);
-
-        // Invalidate the all-settings index cache
-        Cache::forget('site_settings_all');
+        SiteSetting::setValue($request->key, $request->value);
 
         return $this->success(null, '设置已更新');
     }
@@ -59,26 +59,15 @@ class SiteSettingController extends Controller
      */
     public function batchUpdate(Request $request): JsonResponse
     {
+        $this->authorize('update', SiteSetting::class);
+
         $settings = $request->validate([
-            'settings' => 'required|array|max:' . self::MAX_BATCH_SIZE,
+            'settings' => 'required|array',
         ]);
 
-        // Validate each key in the batch
-        foreach (array_keys($settings['settings']) as $key) {
-            if (!is_string($key) || strlen($key) > self::MAX_KEY_LENGTH) {
-                return $this->error('无效的设置键', 422);
-            }
+        foreach ($settings['settings'] as $key => $value) {
+            SiteSetting::setValue($key, $value);
         }
-
-        // Wrap in transaction: all-or-nothing for data integrity
-        DB::transaction(function () use ($settings) {
-            foreach ($settings['settings'] as $key => $value) {
-                SiteSetting::set($key, $value);
-            }
-        });
-
-        // Invalidate the all-settings index cache after batch update
-        Cache::forget('site_settings_all');
 
         return $this->success(null, '设置已批量更新');
     }

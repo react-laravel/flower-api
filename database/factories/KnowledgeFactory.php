@@ -12,12 +12,18 @@ class KnowledgeFactory extends Factory
 {
     protected $model = Knowledge::class;
 
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
+        $categories = ['care', 'meaning', 'ordering', 'delivery', 'general'];
         return [
-            'question' => $this->faker->sentence(8) . '？',
-            'answer' => $this->faker->paragraph(3),
-            'category' => $this->faker->randomElement(['花语', '养护', '配送', '订购', '节日']),
+            'question' => $this->faker->sentence() . '?',
+            'answer' => $this->faker->paragraph(2),
+            'category' => $this->faker->randomElement($categories),
         ];
     }
 }

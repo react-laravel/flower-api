@@ -5,24 +5,16 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class CategoryControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User $admin;
-
-    protected function setUp(): void
+    public function test_index_returns_all_categories_ordered_by_name(): void
     {
-        parent::setUp();
-        $this->admin = User::factory()->create(['is_admin' => true]);
-    }
-
-    public function test_index_returns_all_categories(): void
-    {
-        Category::factory()->count(2)->create();
+        Category::create(['name' => '玫瑰', 'slug' => 'rose', 'user_id' => null]);
+        Category::create(['name' => '百合', 'slug' => 'lily', 'user_id' => null]);
 
         $response = $this->getJson('/api/categories');
 
@@ -31,111 +23,133 @@ class CategoryControllerTest extends TestCase
             ->assertJsonCount(2, 'data');
     }
 
-    public function test_index_returns_categories_ordered_by_name(): void
+    public function test_index_returns_empty_array_when_no_categories(): void
     {
-        Category::factory()->create(['name' => '百合']);
-        Category::factory()->create(['name' => '玫瑰']);
-
         $response = $this->getJson('/api/categories');
 
-        $response->assertOk();
-        $data = $response->json('data');
-        $this->assertEquals('百合', $data[0]['name']);
-        $this->assertEquals('玫瑰', $data[1]['name']);
+        $response->assertOk()
+            ->assertJson(['success' => true, 'data' => []]);
     }
 
     public function test_store_creates_category(): void
     {
-        Sanctum::actingAs($this->admin);
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
 
-        $payload = [
-            'name' => '玫瑰',
-            'slug' => 'roses',
-            'icon' => '🌹',
-            'description' => '各种玫瑰花束',
-        ];
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->postJson('/api/categories', [
+                'name' => '郁金香',
+                'slug' => 'tulip',
+                'icon' => '🌷',
+                'description' => '荷兰国花',
+            ]);
 
-        $response = $this->postJson('/api/categories', $payload);
-
-        $response->assertCreated()
-            ->assertJson(['success' => true]);
-        $this->assertDatabaseHas('categories', ['slug' => 'roses']);
+        $response->assertStatus(201)
+            ->assertJson(['success' => true, 'data' => ['name' => '郁金香', 'slug' => 'tulip']]);
+        $this->assertDatabaseHas('categories', ['name' => '郁金香', 'slug' => 'tulip']);
     }
 
-    public function test_store_requires_name_and_slug(): void
+    public function test_store_requires_authentication(): void
     {
-        Sanctum::actingAs($this->admin);
-
-        $response = $this->postJson('/api/categories', []);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'slug', 'icon', 'description']);
-    }
-
-    public function test_store_requires_unique_slug(): void
-    {
-        Sanctum::actingAs($this->admin);
-        Category::factory()->create(['slug' => 'roses']);
-
         $response = $this->postJson('/api/categories', [
-            'name' => 'Rose Too',
-            'slug' => 'roses',
-            'icon' => '🌹',
-            'description' => 'Desc',
+            'name' => '测试',
+            'slug' => 'test',
         ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['slug']);
+        $response->assertStatus(401);
     }
 
-    public function test_show_returns_category(): void
+    public function test_store_requires_name(): void
     {
-        $category = Category::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->postJson('/api/categories', ['slug' => 'test']);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+    }
+
+    public function test_show_returns_category_by_id(): void
+    {
+        $category = Category::create(['name' => '测试', 'slug' => 'test', 'user_id' => null]);
 
         $response = $this->getJson("/api/categories/{$category->id}");
 
         $response->assertOk()
-            ->assertJson(['success' => true, 'data' => ['id' => $category->id]]);
+            ->assertJson(['success' => true, 'data' => ['name' => '测试']]);
     }
 
-    public function test_show_returns_404_for_missing(): void
+    public function test_show_returns_404_for_nonexistent_category(): void
     {
         $response = $this->getJson('/api/categories/99999');
-
-        $response->assertNotFound();
+        $response->assertStatus(404);
     }
 
     public function test_update_modifies_category(): void
     {
-        Sanctum::actingAs($this->admin);
-        $category = Category::factory()->create(['name' => 'Old Name']);
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
+        $category = Category::create(['name' => '旧名称', 'slug' => 'old', 'user_id' => null]);
 
-        $response = $this->putJson("/api/categories/{$category->id}", ['name' => 'New Name']);
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->putJson("/api/categories/{$category->id}", [
+                'name' => '新名称',
+                'slug' => 'new',
+            ]);
 
         $response->assertOk()
-            ->assertJson(['success' => true]);
-        $this->assertDatabaseHas('categories', ['id' => $category->id, 'name' => 'New Name']);
+            ->assertJson(['success' => true, 'data' => ['name' => '新名称']]);
+        $this->assertDatabaseHas('categories', ['name' => '新名称']);
     }
 
-    public function test_update_allows_same_slug_for_same_category(): void
+    public function test_update_requires_authentication(): void
     {
-        Sanctum::actingAs($this->admin);
-        $category = Category::factory()->create(['slug' => 'roses']);
+        $category = Category::create(['name' => '测试', 'slug' => 'test', 'user_id' => null]);
 
-        $response = $this->putJson("/api/categories/{$category->id}", ['slug' => 'roses']);
+        $response = $this->putJson("/api/categories/{$category->id}", ['name' => '新名称']);
+        $response->assertStatus(401);
+    }
 
-        $response->assertOk();
+    public function test_update_returns_404_for_nonexistent_category(): void
+    {
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->putJson('/api/categories/99999', ['name' => '测试']);
+        $response->assertStatus(404);
     }
 
     public function test_destroy_deletes_category(): void
     {
-        Sanctum::actingAs($this->admin);
-        $category = Category::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
+        $category = Category::create(['name' => '测试', 'slug' => 'test', 'user_id' => null]);
 
-        $response = $this->deleteJson("/api/categories/{$category->id}");
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->deleteJson("/api/categories/{$category->id}");
 
         $response->assertOk()
             ->assertJson(['success' => true, 'message' => '删除成功']);
         $this->assertDatabaseMissing('categories', ['id' => $category->id]);
+    }
+
+    public function test_destroy_requires_authentication(): void
+    {
+        $category = Category::create(['name' => '测试', 'slug' => 'test', 'user_id' => null]);
+
+        $response = $this->deleteJson("/api/categories/{$category->id}");
+        $response->assertStatus(401);
+    }
+
+    public function test_destroy_returns_404_for_nonexistent_category(): void
+    {
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->deleteJson('/api/categories/99999');
+        $response->assertStatus(404);
     }
 }

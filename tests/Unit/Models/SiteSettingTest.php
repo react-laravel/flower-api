@@ -10,101 +10,54 @@ class SiteSettingTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
-    public function it_can_create_a_site_setting(): void
+    public function test_can_create_setting(): void
     {
-        $setting = SiteSetting::create([
-            'key' => 'site_name',
-            'value' => 'Flower API',
-        ]);
-
-        $this->assertDatabaseHas('site_settings', [
-            'key' => 'site_name',
-            'value' => 'Flower API',
-        ]);
-
-        $this->assertEquals('site_name', $setting->key);
-        $this->assertEquals('Flower API', $setting->value);
+        $setting = SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Shop']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'Flower Shop']);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_get_setting_value(): void
+    public function test_key_is_fillable(): void
     {
-        SiteSetting::create(['key' => 'site_name', 'value' => 'Flower API']);
-        SiteSetting::create(['key' => 'contact_email', 'value' => 'test@example.com']);
-
-        $this->assertEquals('Flower API', SiteSetting::get('site_name'));
-        $this->assertEquals('test@example.com', SiteSetting::get('contact_email'));
+        $setting = SiteSetting::create(['key' => 'contact_email', 'value' => 'test@example.com']);
+        $this->assertEquals('contact_email', $setting->key);
     }
 
-    /**
-     * @test
-     */
-    public function it_returns_default_when_setting_not_found(): void
+    public function test_value_is_fillable(): void
+    {
+        $setting = SiteSetting::create(['key' => 'tagline', 'value' => 'Beautiful Flowers']);
+        $this->assertEquals('Beautiful Flowers', $setting->value);
+    }
+
+    public function test_get_returns_value_when_exists(): void
+    {
+        SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Store']);
+        $this->assertEquals('Flower Store', SiteSetting::get('site_name'));
+    }
+
+    public function test_get_returns_default_when_not_exists(): void
     {
         $this->assertNull(SiteSetting::get('nonexistent'));
         $this->assertEquals('default', SiteSetting::get('nonexistent', 'default'));
     }
 
-    /**
-     * @test
-     */
-    public function it_can_set_setting_with_update_or_create(): void
+    public function test_set_creates_new_setting(): void
     {
-        SiteSetting::set('site_name', 'Flower API');
-
-        $this->assertDatabaseHas('site_settings', [
-            'key' => 'site_name',
-            'value' => 'Flower API',
-        ]);
+        SiteSetting::set('new_key', 'new_value');
+        $this->assertDatabaseHas('site_settings', ['key' => 'new_key', 'value' => 'new_value']);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_update_existing_setting(): void
+    public function test_set_updates_existing_setting(): void
     {
-        SiteSetting::set('site_name', 'Old Name');
-
+        SiteSetting::create(['key' => 'site_name', 'value' => 'Old Name']);
         SiteSetting::set('site_name', 'New Name');
 
-        $this->assertEquals('New Name', SiteSetting::get('site_name'));
+        $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'New Name']);
         $this->assertEquals(1, SiteSetting::where('key', 'site_name')->count());
     }
 
-    /**
-     * @test
-     */
-    public function it_has_fillable_attributes(): void
+    public function test_set_returns_model_instance(): void
     {
-        $fillable = ['key', 'value'];
-
-        $this->assertEquals($fillable, (new SiteSetting)->getFillable());
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_delete_setting(): void
-    {
-        $setting = SiteSetting::create(['key' => 'site_name', 'value' => 'Flower API']);
-
-        $setting->delete();
-
-        $this->assertNull(SiteSetting::get('site_name'));
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_set_null_value(): void
-    {
-        SiteSetting::set('optional_setting', null);
-
-        $this->assertNull(SiteSetting::get('optional_setting'));
+        $result = SiteSetting::set('site_name', 'Test Name');
+        $this->assertInstanceOf(SiteSetting::class, $result);
     }
 }

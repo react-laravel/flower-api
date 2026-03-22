@@ -6,43 +6,36 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreFlowerRequest;
 use App\Http\Requests\UpdateFlowerRequest;
 use App\Http\Traits\ApiResponse;
-use App\Http\Traits\PaginatedIndex;
 use App\Models\Flower;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class FlowerController extends Controller
 {
-    use ApiResponse, PaginatedIndex;
+    use ApiResponse;
 
     public function index(Request $request): JsonResponse
     {
-        return $this->paginatedIndex(Flower::query()->orderBy('created_at', 'desc'), $request);
-    }
+        $flowers = Flower::query()
+            ->when($request->filled('category') && $request->category !== 'all',
+                fn($q) => $q->where('category', $request->category))
+            ->when($request->filled('featured'),
+                fn($q) => $q->where('featured', $request->featured === 'true'))
+            ->when($request->filled('search'),
+                fn($q) => $q->where(fn($q) => $q
+                    ->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('name_en', 'like', "%{$request->search}%")))
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-    protected function applyFilters(Builder $query, Request $request): Builder
-    {
-        if ($request->has('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->has('featured')) {
-            $query->where('featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
-        }
-
-        if ($request->has('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('name_en', 'like', "%{$request->search}%");
-            });
-        }
-
-        return $query;
+        return $this->success($flowers);
     }
 
     public function store(StoreFlowerRequest $request): JsonResponse
     {
+        $this->authorize('create', Flower::class);
+
         $flower = Flower::create($request->validated());
 
         return $this->created($flower);
@@ -52,12 +45,17 @@ class FlowerController extends Controller
     {
         $flower = Flower::findOrFail($id);
 
+        $this->authorize('view', $flower);
+
         return $this->success($flower);
     }
 
     public function update(UpdateFlowerRequest $request, int $id): JsonResponse
     {
         $flower = Flower::findOrFail($id);
+
+        $this->authorize('update', $flower);
+
         $flower->update($request->validated());
 
         return $this->success($flower);
@@ -66,6 +64,9 @@ class FlowerController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $flower = Flower::findOrFail($id);
+
+        $this->authorize('delete', $flower);
+
         $flower->delete();
 
         return $this->deleted();

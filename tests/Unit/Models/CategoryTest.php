@@ -3,6 +3,7 @@
 namespace Tests\Unit\Models;
 
 use App\Models\Category;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,83 +11,66 @@ class CategoryTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
-    public function it_can_create_a_category(): void
+    public function test_can_create_category(): void
     {
         $category = Category::create([
             'name' => '玫瑰',
             'slug' => 'rose',
             'icon' => '🌹',
-            'description' => '各种玫瑰花',
+            'description' => '玫瑰花束',
+            'user_id' => null,
         ]);
 
         $this->assertDatabaseHas('categories', [
             'name' => '玫瑰',
             'slug' => 'rose',
         ]);
-
-        $this->assertEquals('玫瑰', $category->name);
-        $this->assertEquals('rose', $category->slug);
         $this->assertEquals('🌹', $category->icon);
-        $this->assertEquals('各种玫瑰花', $category->description);
     }
 
-    /**
-     * @test
-     */
-    public function it_has_fillable_attributes(): void
+    public function test_name_is_fillable(): void
     {
-        $fillable = ['name', 'slug', 'icon', 'description'];
-
-        $this->assertEquals($fillable, (new Category)->getFillable());
+        $category = Category::create(['name' => '百合', 'slug' => 'lily', 'user_id' => null]);
+        $this->assertEquals('百合', $category->name);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_order_categories_by_name(): void
+    public function test_slug_is_fillable(): void
     {
-        Category::create(['name' => '向日葵']);
-        Category::create(['name' => '玫瑰']);
-        Category::create(['name' => '百合']);
-
-        $categories = Category::orderBy('name')->get();
-
-        $this->assertEquals('百合', $categories->first()->name);
-        $this->assertEquals('向日葵', $categories->last()->name);
+        $category = Category::create(['name' => '康乃馨', 'slug' => 'carnation', 'user_id' => null]);
+        $this->assertEquals('carnation', $category->slug);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_update_category(): void
+    public function test_icon_is_fillable(): void
     {
-        $category = Category::create([
-            'name' => '玫瑰',
-            'slug' => 'rose',
-        ]);
-
-        $category->update(['name' => '红玫瑰', 'description' => '红色系玫瑰']);
-
-        $this->assertEquals('红玫瑰', $category->fresh()->name);
-        $this->assertEquals('红色系玫瑰', $category->fresh()->description);
+        $category = Category::create(['name' => '郁金香', 'slug' => 'tulip', 'icon' => '🌷', 'user_id' => null]);
+        $this->assertEquals('🌷', $category->icon);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_delete_category(): void
+    public function test_description_is_fillable(): void
     {
-        $category = Category::create([
-            'name' => '玫瑰',
-            'slug' => 'rose',
-        ]);
+        $category = Category::create(['name' => '向日葵', 'slug' => 'sunflower', 'description' => '阳光之花', 'user_id' => null]);
+        $this->assertEquals('阳光之花', $category->description);
+    }
 
-        $id = $category->id;
-        $category->delete();
+    public function test_user_id_is_fillable(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::create(['name' => '测试', 'slug' => 'test', 'user_id' => $user->id]);
+        $this->assertEquals($user->id, $category->user_id);
+    }
 
-        $this->assertNull(Category::find($id));
+    public function test_belongs_to_user(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::create(['name' => '测试', 'slug' => 'test', 'user_id' => $user->id]);
+
+        $this->assertInstanceOf(User::class, $category->user);
+        $this->assertEquals($user->id, $category->user->id);
+    }
+
+    public function test_user_relation_returns_null_when_no_user(): void
+    {
+        $category = Category::create(['name' => '测试', 'slug' => 'test', 'user_id' => null]);
+        $this->assertNull($category->user);
     }
 }

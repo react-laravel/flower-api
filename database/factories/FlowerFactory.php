@@ -12,21 +12,29 @@ class FlowerFactory extends Factory
 {
     protected $model = Flower::class;
 
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
+        $categories = ['rose', 'tulip', 'lily', 'sunflower', 'orchid'];
+        $category = $this->faker->randomElement($categories);
+
         return [
-            'name' => $this->faker->word(),
-            'name_en' => $this->faker->word(),
-            'category' => $this->faker->randomElement(['玫瑰', '百合', '郁金香', '向日葵', '康乃馨']),
-            'price' => $this->faker->randomFloat(2, 29, 299),
-            'original_price' => $this->faker->randomFloat(2, 49, 399),
-            'image' => '/images/' . $this->faker->slug(2) . '.jpg',
-            'description' => $this->faker->sentence(10),
-            'meaning' => $this->faker->sentence(5),
-            'care' => $this->faker->sentence(8),
-            'stock' => $this->faker->numberBetween(0, 200),
-            'featured' => $this->faker->boolean(30),
-            'holiday' => $this->faker->optional(0.3)->word(),
+            'name' => $this->faker->words(2, true) . ' ' . ucfirst($category),
+            'name_en' => ucfirst($this->faker->words(2, true)) . ' ' . ucfirst($category),
+            'category' => $category,
+            'price' => $this->faker->randomFloat(2, 10, 200),
+            'original_price' => $this->faker->randomFloat(2, 20, 300),
+            'image' => $this->faker->imageUrl(400, 400, 'flowers'),
+            'description' => $this->faker->paragraph(2),
+            'meaning' => $this->faker->sentence(),
+            'care' => $this->faker->paragraph(1),
+            'stock' => $this->faker->numberBetween(0, 100),
+            'featured' => $this->faker->boolean(20),
+            'holiday' => $this->faker->randomElement(['情人节', '母亲节', '春节', null]),
         ];
     }
 }
