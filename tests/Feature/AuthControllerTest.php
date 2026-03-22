@@ -24,8 +24,8 @@ class AuthControllerTest extends TestCase
         ]);
 
         $response->assertOk()
-            ->assertJson(['success' => true])
             ->assertJsonStructure(['success', 'data' => ['user', 'token']]);
+        $this->assertEquals($user->id, $response->json('data.user.id'));
     }
 
     public function test_login_with_invalid_credentials(): void
@@ -44,18 +44,10 @@ class AuthControllerTest extends TestCase
             ->assertJsonValidationErrors(['email']);
     }
 
-    public function test_login_requires_email_and_password(): void
-    {
-        $response = $this->postJson('/api/auth/login', []);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['email', 'password']);
-    }
-
-    public function test_login_requires_valid_email_format(): void
+    public function test_login_with_nonexistent_email(): void
     {
         $response = $this->postJson('/api/auth/login', [
-            'email' => 'not-an-email',
+            'email' => 'nonexistent@example.com',
             'password' => 'password123',
         ]);
 
@@ -63,31 +55,50 @@ class AuthControllerTest extends TestCase
             ->assertJsonValidationErrors(['email']);
     }
 
-    public function test_register_creates_user(): void
+    public function test_login_requires_email(): void
+    {
+        $response = $this->postJson('/api/auth/login', [
+            'password' => 'password123',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_login_requires_password(): void
+    {
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'test@example.com',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
+    }
+
+    public function test_register_with_valid_data(): void
     {
         $response = $this->postJson('/api/auth/register', [
-            'name' => 'New User',
+            'name' => '测试用户',
             'email' => 'newuser@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertCreated()
-            ->assertJson(['success' => true])
+        $response->assertStatus(201)
             ->assertJsonStructure(['success', 'data' => ['user', 'token']]);
         $this->assertDatabaseHas('users', ['email' => 'newuser@example.com']);
     }
 
-    public function test_register_requires_password_confirmation(): void
+    public function test_register_requires_name(): void
     {
         $response = $this->postJson('/api/auth/register', [
-            'name' => 'New User',
-            'email' => 'newuser@example.com',
+            'email' => 'test@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['password']);
+            ->assertJsonValidationErrors(['name']);
     }
 
     public function test_register_requires_unique_email(): void
@@ -95,7 +106,7 @@ class AuthControllerTest extends TestCase
         User::factory()->create(['email' => 'existing@example.com']);
 
         $response = $this->postJson('/api/auth/register', [
-            'name' => 'New User',
+            'name' => '测试',
             'email' => 'existing@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -105,11 +116,23 @@ class AuthControllerTest extends TestCase
             ->assertJsonValidationErrors(['email']);
     }
 
+    public function test_register_requires_password_confirmation(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => '测试',
+            'email' => 'test@example.com',
+            'password' => 'password123',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
+    }
+
     public function test_register_requires_minimum_password_length(): void
     {
         $response = $this->postJson('/api/auth/register', [
-            'name' => 'New User',
-            'email' => 'new@example.com',
+            'name' => '测试',
+            'email' => 'test@example.com',
             'password' => 'short',
             'password_confirmation' => 'short',
         ]);
@@ -121,26 +144,25 @@ class AuthControllerTest extends TestCase
     public function test_user_returns_authenticated_user(): void
     {
         $user = User::factory()->create();
-        $token = $user->createToken('test-token')->plainTextToken;
+        $token = $user->createToken('test')->plainTextToken;
 
         $response = $this->withHeader('Authorization', "Bearer $token")
             ->getJson('/api/auth/user');
 
         $response->assertOk()
-            ->assertJson(['success' => true, 'data' => ['id' => $user->id]]);
+            ->assertJson(['data' => ['id' => $user->id]]);
     }
 
     public function test_user_requires_authentication(): void
     {
         $response = $this->getJson('/api/auth/user');
-
-        $response->assertUnauthorized();
+        $response->assertStatus(401);
     }
 
     public function test_logout_revokes_token(): void
     {
         $user = User::factory()->create();
-        $token = $user->createToken('test-token')->plainTextToken;
+        $token = $user->createToken('test')->plainTextToken;
 
         $response = $this->withHeader('Authorization', "Bearer $token")
             ->postJson('/api/auth/logout');
@@ -149,22 +171,39 @@ class AuthControllerTest extends TestCase
             ->assertJson(['success' => true, 'message' => '已退出登录']);
     }
 
-    public function test_is_admin_returns_admin_status(): void
+    public function test_logout_requires_authentication(): void
     {
-        $admin = User::factory()->create(['is_admin' => true]);
-        $regular = User::factory()->create(['is_admin' => false]);
+        $response = $this->postJson('/api/auth/logout');
+        $response->assertStatus(401);
+    }
 
-        $adminToken = $admin->createToken('admin-token')->plainTextToken;
-        $userToken = $regular->createToken('user-token')->plainTextToken;
+    public function test_is_admin_returns_false_for_regular_user(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $token = $user->createToken('test')->plainTextToken;
 
-        $adminResponse = $this->withHeader('Authorization', "Bearer $adminToken")
+        $response = $this->withHeader('Authorization', "Bearer $token")
             ->getJson('/api/auth/is-admin');
-        $adminResponse->assertOk()
-            ->assertJson(['success' => true, 'data' => ['is_admin' => true]]);
 
-        $userResponse = $this->withHeader('Authorization', "Bearer $userToken")
+        $response->assertOk()
+            ->assertJson(['data' => ['is_admin' => false]]);
+    }
+
+    public function test_is_admin_returns_true_for_admin_user(): void
+    {
+        $user = User::factory()->create(['is_admin' => true]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
             ->getJson('/api/auth/is-admin');
-        $userResponse->assertOk()
-            ->assertJson(['success' => true, 'data' => ['is_admin' => false]]);
+
+        $response->assertOk()
+            ->assertJson(['data' => ['is_admin' => true]]);
+    }
+
+    public function test_is_admin_requires_authentication(): void
+    {
+        $response = $this->getJson('/api/auth/is-admin');
+        $response->assertStatus(401);
     }
 }

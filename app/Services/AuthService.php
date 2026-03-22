@@ -1,0 +1,85 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Hashing\Hasher;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Authentication service handling user authentication business logic.
+ * Extracted from AuthController to fix SRP and DIP violations.
+ */
+class AuthService
+{
+    private Hasher $hasher;
+
+    public function __construct(?Hasher $hasher = null)
+    {
+        $this->hasher = $hasher ?? Hash::getFacadeRoot();
+    }
+
+    /**
+     * Authenticate user with email and password.
+     *
+     * @throws ValidationException
+     */
+    public function authenticate(string $email, string $password): User
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user || !$this->hasher->check($password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['提供的凭证不正确'],
+            ]);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Create a new user registration.
+     */
+    public function register(string $name, string $email, string $password): User
+    {
+        return User::create([
+            'name' => $name,
+            'email' => $email,
+            'password' => $password,
+        ]);
+    }
+
+    /**
+     * Create authentication token for user.
+     */
+    public function createToken(Authenticatable $user): string
+    {
+        return $user->createToken('auth-token')->plainTextToken;
+    }
+
+    /**
+     * Revoke current access token.
+     */
+    public function logout(Authenticatable $user): void
+    {
+        $user->currentAccessToken()->delete();
+    }
+
+    /**
+     * Check if user has admin privileges.
+     */
+    public function isAdmin(Authenticatable $user): bool
+    {
+        return $user->is_admin === true;
+    }
+
+    /**
+     * Get authenticated user from request.
+     */
+    public function getAuthenticatedUser(?Authenticatable $user): ?Authenticatable
+    {
+        return $user;
+    }
+}

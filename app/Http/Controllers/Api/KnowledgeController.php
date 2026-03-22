@@ -6,32 +6,30 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreKnowledgeRequest;
 use App\Http\Requests\UpdateKnowledgeRequest;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\PaginatedIndex;
+use App\Http\Traits\ResourceController;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Knowledge controller with DRY-optimized CRUD via ResourceController trait.
+ */
 class KnowledgeController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, PaginatedIndex, ResourceController;
+
+    protected static function getModelClass(): string
+    {
+        return Knowledge::class;
+    }
 
     public function index(Request $request): JsonResponse
     {
-        $perPage = min((int) $request->get('per_page', 20), 100);
-        $page = max((int) $request->get('page', 1), 1);
-
-        $knowledge = Knowledge::query()
-            ->orderBy('id', 'desc')
-            ->paginate($perPage, ['*'], 'page', $page);
-
-        return $this->success([
-            'data' => $knowledge->items(),
-            'pagination' => [
-                'current_page' => $knowledge->currentPage(),
-                'last_page' => $knowledge->lastPage(),
-                'per_page' => $knowledge->perPage(),
-                'total' => $knowledge->total(),
-            ],
-        ]);
+        return $this->paginatedIndex(
+            Knowledge::query()->orderBy('category')->orderBy('id'),
+            $request
+        );
     }
 
     public function store(StoreKnowledgeRequest $request): JsonResponse
@@ -41,26 +39,5 @@ class KnowledgeController extends Controller
         return $this->created($knowledge);
     }
 
-    public function show(int $id): JsonResponse
-    {
-        $knowledge = Knowledge::findOrFail($id);
-
-        return $this->success($knowledge);
-    }
-
-    public function update(UpdateKnowledgeRequest $request, int $id): JsonResponse
-    {
-        $knowledge = Knowledge::findOrFail($id);
-        $knowledge->update($request->validated());
-
-        return $this->success($knowledge);
-    }
-
-    public function destroy(int $id): JsonResponse
-    {
-        $knowledge = Knowledge::findOrFail($id);
-        $knowledge->delete();
-
-        return $this->deleted();
-    }
+    // show(), update(), destroy() are provided by ResourceController trait
 }

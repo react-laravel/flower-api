@@ -13,9 +13,8 @@ trait ApiResponse
     {
         $response = ['success' => true];
 
-        if ($data !== null) {
-            $response['data'] = $data;
-        }
+        // Always include 'data' key
+        $response['data'] = $data;
 
         if ($message !== null) {
             $response['message'] = $message;
