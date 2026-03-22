@@ -17,24 +17,17 @@ class FlowerController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Flower::query();
-
-        if ($request->has('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->has('featured')) {
-            $query->where('featured', $request->featured === 'true');
-        }
-
-        if ($request->has('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('name_en', 'like', "%{$request->search}%");
-            });
-        }
-
-        $flowers = $query->orderBy('created_at', 'desc')->get();
+        $flowers = Flower::query()
+            ->when($request->filled('category') && $request->category !== 'all',
+                fn($q) => $q->where('category', $request->category))
+            ->when($request->filled('featured'),
+                fn($q) => $q->where('featured', $request->featured === 'true'))
+            ->when($request->filled('search'),
+                fn($q) => $q->where(fn($q) => $q
+                    ->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('name_en', 'like', "%{$request->search}%")))
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return $this->success($flowers);
     }
