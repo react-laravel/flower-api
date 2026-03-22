@@ -28,36 +28,36 @@ class SiteSettingTest extends TestCase
         $this->assertEquals('Beautiful Flowers', $setting->value);
     }
 
-    public function test_get_returns_value_when_exists(): void
+    public function test_get_value_returns_value_when_exists(): void
     {
         SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Store']);
-        $this->assertEquals('Flower Store', SiteSetting::get('site_name'));
+        $this->assertEquals('Flower Store', SiteSetting::getValue('site_name'));
     }
 
-    public function test_get_returns_default_when_not_exists(): void
+    public function test_get_value_returns_default_when_not_exists(): void
     {
-        $this->assertNull(SiteSetting::get('nonexistent'));
-        $this->assertEquals('default', SiteSetting::get('nonexistent', 'default'));
+        $this->assertNull(SiteSetting::getValue('nonexistent'));
+        $this->assertEquals('default', SiteSetting::getValue('nonexistent', 'default'));
     }
 
-    public function test_set_creates_new_setting(): void
+    public function test_set_value_creates_new_setting(): void
     {
-        SiteSetting::set('new_key', 'new_value');
+        SiteSetting::setValue('new_key', 'new_value');
         $this->assertDatabaseHas('site_settings', ['key' => 'new_key', 'value' => 'new_value']);
     }
 
-    public function test_set_updates_existing_setting(): void
+    public function test_set_value_updates_existing_setting(): void
     {
         SiteSetting::create(['key' => 'site_name', 'value' => 'Old Name']);
-        SiteSetting::set('site_name', 'New Name');
+        SiteSetting::setValue('site_name', 'New Name');
 
         $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'New Name']);
         $this->assertEquals(1, SiteSetting::where('key', 'site_name')->count());
     }
 
-    public function test_set_returns_model_instance(): void
+    public function test_set_value_returns_model_instance(): void
     {
-        $result = SiteSetting::set('site_name', 'Test Name');
+        $result = SiteSetting::setValue('site_name', 'Test Name');
         $this->assertInstanceOf(SiteSetting::class, $result);
     }
 }
