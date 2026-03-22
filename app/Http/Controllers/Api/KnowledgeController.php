@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreKnowledgeRequest;
 use App\Http\Requests\UpdateKnowledgeRequest;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\Idempotency;
 use App\Http\Traits\ResourceListTrait;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class KnowledgeController extends Controller
 {
-    use ApiResponse, ResourceListTrait;
+    use ApiResponse, Idempotency, ResourceListTrait;
 
     public function index(): JsonResponse
     {
@@ -21,41 +24,50 @@ class KnowledgeController extends Controller
 
     public function store(StoreKnowledgeRequest $request): JsonResponse
     {
-        $this->authorize('create', Knowledge::class);
+        return $this->handleIdempotentRequest($request, function () use ($request) {
+            Gate::authorize('create', Knowledge::class);
 
-        $knowledge = Knowledge::create($request->validated());
-
-        return $this->created($knowledge);
+            return DB::transaction(function () use ($request) {
+                $knowledge = Knowledge::create($request->validated());
+                return $this->created($knowledge);
+            });
+        });
     }
 
     public function show(int $id): JsonResponse
     {
         $knowledge = Knowledge::findOrFail($id);
 
-        $this->authorize('view', $knowledge);
+        Gate::authorize('view', $knowledge);
 
         return $this->success($knowledge);
     }
 
     public function update(UpdateKnowledgeRequest $request, int $id): JsonResponse
     {
-        $knowledge = Knowledge::findOrFail($id);
+        return $this->handleIdempotentRequest($request, function () use ($request, $id) {
+            $knowledge = Knowledge::findOrFail($id);
 
-        $this->authorize('update', $knowledge);
+            Gate::authorize('update', $knowledge);
 
-        $knowledge->update($request->validated());
-
-        return $this->success($knowledge);
+            return DB::transaction(function () use ($knowledge, $request) {
+                $knowledge->update($request->validated());
+                return $this->success($knowledge);
+            });
+        });
     }
 
     public function destroy(int $id): JsonResponse
     {
-        $knowledge = Knowledge::findOrFail($id);
+        return $this->handleIdempotentRequest(request(), function () use ($id) {
+            $knowledge = Knowledge::findOrFail($id);
 
-        $this->authorize('delete', $knowledge);
+            Gate::authorize('delete', $knowledge);
 
-        $knowledge->delete();
-
-        return $this->deleted();
+            return DB::transaction(function () use ($knowledge) {
+                $knowledge->delete();
+                return $this->deleted();
+            });
+        });
     }
 }
