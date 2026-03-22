@@ -22,6 +22,12 @@ class SiteSettingController extends Controller
         $key = $request->query('key');
 
         if ($key) {
+            // Check if the requested key matches sensitive patterns
+            $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
+            if (preg_match('/(' . implode('|', $sensitivePatterns) . ')/i', $key)) {
+                return $this->error('无效的设置键', 400);
+            }
+
             $value = SiteSetting::getValue($key);
             return $this->success($value);
         }
