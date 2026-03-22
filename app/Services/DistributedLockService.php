@@ -12,7 +12,7 @@ class DistributedLockService
 
     public function __construct(string $cacheStore = null)
     {
-        $this->cacheStore = $cacheStore ?? config('cache.default', 'redis');
+        $this->cacheStore = $cacheStore ?? config('cache.default');
     }
 
     /**

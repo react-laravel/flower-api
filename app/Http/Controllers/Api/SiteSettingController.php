@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\Idempotency;
 use App\Models\SiteSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SiteSettingController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, Idempotency;
 
     /**
      * Get all settings or a specific setting
@@ -48,16 +50,19 @@ class SiteSettingController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
-        $this->authorize('update', SiteSetting::class);
+        return $this->handleIdempotentRequest($request, function () use ($request) {
+            $this->authorize('update', SiteSetting::class);
 
-        $request->validate([
-            'key' => 'required|string',
-            'value' => 'nullable|string',
-        ]);
+            $request->validate([
+                'key' => 'required|string',
+                'value' => 'nullable|string',
+            ]);
 
-        SiteSetting::setValue($request->key, $request->value);
-
-        return $this->success(null, '设置已更新');
+            return DB::transaction(function () use ($request) {
+                SiteSetting::setValue($request->key, $request->value);
+                return $this->success(null, '设置已更新');
+            });
+        });
     }
 
     /**
@@ -65,16 +70,19 @@ class SiteSettingController extends Controller
      */
     public function batchUpdate(Request $request): JsonResponse
     {
-        $this->authorize('update', SiteSetting::class);
+        return $this->handleIdempotentRequest($request, function () use ($request) {
+            $this->authorize('update', SiteSetting::class);
 
-        $settings = $request->validate([
-            'settings' => 'required|array',
-        ]);
+            $settings = $request->validate([
+                'settings' => 'required|array',
+            ]);
 
-        foreach ($settings['settings'] as $key => $value) {
-            SiteSetting::setValue($key, $value);
-        }
-
-        return $this->success(null, '设置已批量更新');
+            return DB::transaction(function () use ($settings) {
+                foreach ($settings['settings'] as $key => $value) {
+                    SiteSetting::setValue($key, $value);
+                }
+                return $this->success(null, '设置已批量更新');
+            });
+        });
     }
 }

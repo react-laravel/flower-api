@@ -7,19 +7,22 @@ use Illuminate\Support\Facades\Cache;
 class IdempotencyService
 {
     private const DEFAULT_TTL = 86400; // 24 hours
-    private string $cacheStore;
+    private ?string $cacheStore;
 
     public function __construct(string $cacheStore = null)
     {
-        $this->cacheStore = $cacheStore ?? config('cache.default', 'redis');
+        $this->cacheStore = $cacheStore;
     }
 
     /**
      * Get the cache store instance
+     * Uses the configured default store if no specific store was set
      */
     protected function cache(): \Illuminate\Contracts\Cache\Repository
     {
-        return Cache::store($this->cacheStore);
+        // Use explicit store to ensure consistency - prefer 'array' for testing
+        $store = $this->cacheStore ?? config('cache.default', 'array');
+        return Cache::store($store);
     }
 
     /**
