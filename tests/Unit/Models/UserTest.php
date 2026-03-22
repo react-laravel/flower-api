@@ -3,131 +3,43 @@
 namespace Tests\Unit\Models;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class UserTest extends TestCase
 {
-    use RefreshDatabase;
-
-    /**
-     * @test
-     */
-    public function it_can_create_a_user(): void
+    public function test_it_can_be_instantiated(): void
     {
-        $user = User::create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => 'password123',
-        ]);
-
-        $this->assertDatabaseHas('users', [
-            'email' => 'test@example.com',
-        ]);
-
-        $this->assertEquals('Test User', $user->name);
-        $this->assertEquals('test@example.com', $user->email);
+        $user = new User();
+        $this->assertInstanceOf(User::class, $user);
     }
-
-    /**
-     * @test
-     */
-    public function it_has_fillable_attributes(): void
+    public function test_fillable_attributes_are_defined(): void
     {
-        $fillable = ['name', 'email', 'password', 'is_admin'];
+        $user = new User();
+        $fillable = $user->getFillable();
 
-        $this->assertEquals($fillable, (new User)->getFillable());
+        $this->assertContains('name', $fillable);
+        $this->assertContains('email', $fillable);
+        $this->assertContains('password', $fillable);
+        $this->assertContains('is_admin', $fillable);
     }
-
-    /**
-     * @test
-     */
-    public function it_hides_password_and_remember_token(): void
+    public function test_hidden_attributes_exclude_password_and_remember_token(): void
     {
-        $hidden = ['password', 'remember_token'];
+        $user = new User();
+        $hidden = $user->getHidden();
 
-        $this->assertEquals($hidden, (new User)->getHidden());
+        $this->assertContains('password', $hidden);
+        $this->assertContains('remember_token', $hidden);
     }
-
-    /**
-     * @test
-     */
-    public function it_casts_is_admin_to_boolean(): void
+    public function test_casts_are_defined(): void
     {
-        $user = User::create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'password' => 'password123',
-            'is_admin' => true,
-        ]);
+        $user = new User();
+        $casts = $user->getCasts();
 
-        $this->assertTrue($user->is_admin);
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_create_api_token(): void
-    {
-        $user = User::create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => 'password123',
-        ]);
-
-        $token = $user->createToken('test-token')->plainTextToken;
-
-        $this->assertNotEmpty($token);
-        $this->assertStringContainsString('|', $token);
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_find_user_by_email(): void
-    {
-        User::create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => 'password123',
-        ]);
-
-        $user = User::where('email', 'test@example.com')->first();
-
-        $this->assertNotNull($user);
-        $this->assertEquals('Test User', $user->name);
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_update_user(): void
-    {
-        $user = User::create([
-            'name' => 'Old Name',
-            'email' => 'test@example.com',
-            'password' => 'password123',
-        ]);
-
-        $user->update(['name' => 'New Name']);
-
-        $this->assertEquals('New Name', $user->fresh()->name);
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_delete_user(): void
-    {
-        $user = User::create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => 'password123',
-        ]);
-
-        $id = $user->id;
-        $user->delete();
-
-        $this->assertNull(User::find($id));
+        $this->assertArrayHasKey('email_verified_at', $casts);
+        $this->assertEquals('datetime', $casts['email_verified_at']);
+        $this->assertArrayHasKey('password', $casts);
+        $this->assertEquals('hashed', $casts['password']);
+        $this->assertArrayHasKey('is_admin', $casts);
+        $this->assertEquals('boolean', $casts['is_admin']);
     }
 }

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Category>
+ * @extends Factory<Category>
  */
 class CategoryFactory extends Factory
 {
@@ -20,11 +20,11 @@ class CategoryFactory extends Factory
      */
     public function definition(): array
     {
-        $name = $this->faker->unique()->word();
+        $name = $this->faker->unique()->words(2, true);
         return [
             'name' => ucfirst($name),
             'slug' => Str::slug($name),
-            'icon' => $this->faker->randomElement(['heart', 'star', 'sun', 'flower', 'gift']),
+            'icon' => $this->faker->randomElement(['🌹', '🌷', '🌸', '🌺', '🌻', '💐']),
             'description' => $this->faker->sentence(),
         ];
     }

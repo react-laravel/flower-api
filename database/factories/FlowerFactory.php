@@ -6,7 +6,7 @@ use App\Models\Flower;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Flower>
+ * @extends Factory<Flower>
  */
 class FlowerFactory extends Factory
 {
@@ -19,42 +19,22 @@ class FlowerFactory extends Factory
      */
     public function definition(): array
     {
-        $categories = ['rose', 'tulip', 'lily', 'daisy', 'sunflower'];
-        $holidays = ['valentine', 'mother_day', 'birthday', 'anniversary', null];
+        $categories = ['rose', 'tulip', 'lily', 'sunflower', 'orchid'];
+        $category = $this->faker->randomElement($categories);
 
         return [
-            'name' => $this->faker->words(2, true) . ' ' . $this->faker->randomElement(['Rose', 'Lily', 'Tulip', 'Daisy']),
-            'name_en' => $this->faker->words(3, true),
-            'category' => $this->faker->randomElement($categories),
-            'price' => $this->faker->randomFloat(2, 10, 100),
-            'original_price' => $this->faker->randomFloat(2, 15, 150),
+            'name' => $this->faker->words(2, true) . ' ' . ucfirst($category),
+            'name_en' => ucfirst($this->faker->words(2, true)) . ' ' . ucfirst($category),
+            'category' => $category,
+            'price' => $this->faker->randomFloat(2, 10, 200),
+            'original_price' => $this->faker->randomFloat(2, 20, 300),
             'image' => $this->faker->imageUrl(400, 400, 'flowers'),
-            'description' => $this->faker->paragraph(),
+            'description' => $this->faker->paragraph(2),
             'meaning' => $this->faker->sentence(),
-            'care' => $this->faker->paragraph(),
-            'stock' => $this->faker->numberBetween(0, 500),
-            'featured' => $this->faker->boolean(30),
-            'holiday' => $this->faker->randomElement($holidays),
+            'care' => $this->faker->paragraph(1),
+            'stock' => $this->faker->numberBetween(0, 100),
+            'featured' => $this->faker->boolean(20),
+            'holiday' => $this->faker->randomElement(['情人节', '母亲节', '春节', null]),
         ];
-    }
-
-    /**
-     * Indicate that the flower is featured.
-     */
-    public function featured(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'featured' => true,
-        ]);
-    }
-
-    /**
-     * Indicate that the flower is out of stock.
-     */
-    public function outOfStock(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'stock' => 0,
-        ]);
     }
 }

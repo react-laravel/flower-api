@@ -6,7 +6,7 @@ use App\Models\Knowledge;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Knowledge>
+ * @extends Factory<Knowledge>
  */
 class KnowledgeFactory extends Factory
 {
@@ -19,10 +19,10 @@ class KnowledgeFactory extends Factory
      */
     public function definition(): array
     {
-        $categories = ['flower_meaning', 'care_tips', 'ordering', 'delivery', 'general'];
+        $categories = ['care', 'meaning', 'ordering', 'delivery', 'general'];
         return [
             'question' => $this->faker->sentence() . '?',
-            'answer' => $this->faker->paragraph(),
+            'answer' => $this->faker->paragraph(2),
             'category' => $this->faker->randomElement($categories),
         ];
     }
