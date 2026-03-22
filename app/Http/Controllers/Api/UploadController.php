@@ -38,15 +38,24 @@ class UploadController extends Controller
     public function delete(Request $request): JsonResponse
     {
         $request->validate([
-            'path' => 'required|string',
+            'path' => 'required|string|max:255',
         ]);
 
-        // Only allow deleting from uploads directory
-        if (!str_starts_with($request->path, 'uploads/')) {
+        $rawPath = urldecode($request->path);
+
+        // Must start with uploads/ and contain no path traversal sequences
+        if (!str_starts_with($rawPath, 'uploads/')
+            || str_contains($rawPath, '..')
+            || str_contains($rawPath, '~')) {
             return $this->error('无效的文件路径', 400);
         }
 
-        Storage::disk('public')->delete($request->path);
+        // Verify file exists before attempting delete to give meaningful feedback
+        if (!Storage::disk('public')->exists($rawPath)) {
+            return $this->error('文件不存在', 404);
+        }
+
+        Storage::disk('public')->delete($rawPath);
 
         return $this->success(null, '删除成功');
     }
