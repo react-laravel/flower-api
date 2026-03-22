@@ -6,18 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreKnowledgeRequest;
 use App\Http\Requests\UpdateKnowledgeRequest;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\ResourceListTrait;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
 
 class KnowledgeController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, ResourceListTrait;
 
     public function index(): JsonResponse
     {
-        $knowledge = Knowledge::orderBy('category')->get();
-
-        return $this->success($knowledge);
+        return $this->listAll(Knowledge::class, 'category');
     }
 
     public function store(StoreKnowledgeRequest $request): JsonResponse
