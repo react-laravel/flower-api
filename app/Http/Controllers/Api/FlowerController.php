@@ -16,6 +16,7 @@ class FlowerController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $perPage = min((int) $request->get('per_page', 20), 100);
         $query = Flower::query();
 
         if ($request->has('category') && $request->category !== 'all') {
@@ -33,9 +34,15 @@ class FlowerController extends Controller
             });
         }
 
-        $flowers = $query->orderBy('created_at', 'desc')->get();
+        $flowers = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
-        return $this->success($flowers);
+        return $this->success([
+            'items' => $flowers->items(),
+            'total' => $flowers->total(),
+            'current_page' => $flowers->currentPage(),
+            'last_page' => $flowers->lastPage(),
+            'per_page' => $flowers->perPage(),
+        ]);
     }
 
     public function store(StoreFlowerRequest $request): JsonResponse

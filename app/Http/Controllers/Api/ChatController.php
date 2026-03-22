@@ -7,22 +7,37 @@ use App\Http\Traits\ApiResponse;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ChatController extends Controller
 {
     use ApiResponse;
 
+    private const CACHE_TTL_SECONDS = 300; // 5 minutes
+    private const QUERY_TIMEOUT_SECONDS = 5; // DB query timeout
+
+    /**
+     * Chat endpoint with knowledge base search.
+     * Uses cache to avoid reloading all knowledge on every request.
+     */
     public function chat(Request $request): JsonResponse
     {
         $request->validate([
-            'message' => 'required|string',
+            'message' => 'required|string|max:500',
         ]);
 
-        $query = strtolower($request->message);
+        // Timeout guard: abort if DB is unresponsive
+        DB::connection()->getPdo()->setAttribute(\PDO::ATTR_TIMEOUT, self::QUERY_TIMEOUT_SECONDS);
+
+        $query = strtolower(trim($request->message));
         $bestMatch = null;
         $highestScore = 0;
 
-        $knowledgeItems = Knowledge::all();
+        // Cache knowledge items for 5 minutes to avoid repeated DB load
+        $knowledgeItems = Cache::remember('knowledge_all', self::CACHE_TTL_SECONDS, function () {
+            return Knowledge::all();
+        });
 
         foreach ($knowledgeItems as $item) {
             $question = strtolower($item->question);
@@ -38,8 +53,11 @@ class ChatController extends Controller
             }
             // Keyword match
             else {
-                $queryWords = explode(' ', preg_replace('/\s+/', ' ', trim($query)));
+                $queryWords = array_filter(explode(' ', preg_replace('/\s+/', ' ', trim($query))));
                 $questionWords = explode(' ', preg_replace('/\s+/', ' ', trim($question)));
+                if (count($queryWords) === 0) {
+                    continue;
+                }
                 $matches = array_filter($queryWords, function ($w) use ($questionWords) {
                     return count(array_filter($questionWords, fn($qw) => str_contains($qw, $w) || str_contains($w, $qw))) > 0;
                 });
@@ -63,9 +81,14 @@ class ChatController extends Controller
         ]);
     }
 
+    /**
+     * Get all knowledge items for client-side caching.
+     */
     public function knowledge(): JsonResponse
     {
-        $knowledge = Knowledge::orderBy('category')->get();
+        $knowledge = Cache::remember('knowledge_list', self::CACHE_TTL_SECONDS, function () {
+            return Knowledge::orderBy('category')->get();
+        });
 
         return $this->success($knowledge);
     }
