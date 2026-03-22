@@ -6,28 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreKnowledgeRequest;
 use App\Http\Requests\UpdateKnowledgeRequest;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\PaginatedIndex;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class KnowledgeController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, PaginatedIndex;
 
     public function index(Request $request): JsonResponse
     {
-        $perPage = min((int) $request->get('per_page', 20), 100);
-        $knowledge = Knowledge::orderBy('category')
-            ->orderBy('id')
-            ->paginate($perPage);
-
-        return $this->success([
-            'items' => $knowledge->items(),
-            'total' => $knowledge->total(),
-            'current_page' => $knowledge->currentPage(),
-            'last_page' => $knowledge->lastPage(),
-            'per_page' => $knowledge->perPage(),
-        ]);
+        return $this->paginatedIndex(
+            Knowledge::query()->orderBy('category')->orderBy('id'),
+            $request
+        );
     }
 
     public function store(StoreKnowledgeRequest $request): JsonResponse
