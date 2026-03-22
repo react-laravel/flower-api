@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
 use App\Models\SiteSetting;
+use App\Services\SiteSettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,13 @@ class SiteSettingController extends Controller
     private const SENSITIVE_PATTERNS = [
         'smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth',
     ];
+
+    private SiteSettingService $settingService;
+
+    public function __construct(SiteSettingService $settingService)
+    {
+        $this->settingService = $settingService;
+    }
 
     /**
      * Get all settings or a specific setting
@@ -30,7 +38,7 @@ class SiteSettingController extends Controller
                 return $this->error('无效的设置键', 400);
             }
 
-            $value = SiteSetting::getValue($key);
+            $value = $this->settingService->get($key);
             return $this->success($value);
         }
 
@@ -57,7 +65,7 @@ class SiteSettingController extends Controller
             'value' => 'nullable|string',
         ]);
 
-        SiteSetting::setValue($request->key, $request->value);
+        $this->settingService->set($request->key, $request->value);
 
         return $this->success(null, '设置已更新');
     }
@@ -73,9 +81,7 @@ class SiteSettingController extends Controller
             'settings' => 'required|array',
         ]);
 
-        foreach ($settings['settings'] as $key => $value) {
-            SiteSetting::setValue($key, $value);
-        }
+        $this->settingService->batchSet($settings['settings']);
 
         return $this->success(null, '设置已批量更新');
     }
