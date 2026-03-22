@@ -79,7 +79,7 @@ class SiteSettingControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJson(['success' => true, 'message' => '设置已更新']);
 
-        $this->assertEquals('New Flower Shop', SiteSetting::get('site_name'));
+        $this->assertEquals('New Flower Shop', SiteSetting::getValue('site_name'));
     }
 
     /**
@@ -128,9 +128,9 @@ class SiteSettingControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJson(['success' => true, 'message' => '设置已批量更新']);
 
-        $this->assertEquals('Flower Shop', SiteSetting::get('site_name'));
-        $this->assertEquals('contact@flower.com', SiteSetting::get('contact_email'));
-        $this->assertEquals('123456789', SiteSetting::get('phone'));
+        $this->assertEquals('Flower Shop', SiteSetting::getValue('site_name'));
+        $this->assertEquals('contact@flower.com', SiteSetting::getValue('contact_email'));
+        $this->assertEquals('123456789', SiteSetting::getValue('phone'));
     }
 
     /**

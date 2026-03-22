@@ -21,34 +21,34 @@ class SiteSettingModelTest extends TestCase
         $this->assertEquals('Flower Shop', $setting->value);
     }
 
-    public function test_site_setting_get_returns_value(): void
+    public function test_site_setting_get_value_returns_value(): void
     {
         SiteSetting::create(['key' => 'site_name', 'value' => 'My Flower Shop']);
 
-        $value = SiteSetting::get('site_name');
+        $value = SiteSetting::getValue('site_name');
 
         $this->assertEquals('My Flower Shop', $value);
     }
 
-    public function test_site_setting_get_returns_default_for_missing_key(): void
+    public function test_site_setting_get_value_returns_default_for_missing_key(): void
     {
-        $value = SiteSetting::get('nonexistent', 'default_value');
+        $value = SiteSetting::getValue('nonexistent', 'default_value');
 
         $this->assertEquals('default_value', $value);
     }
 
-    public function test_site_setting_set_creates_new_setting(): void
+    public function test_site_setting_set_value_creates_new_setting(): void
     {
-        SiteSetting::set('new_key', 'new_value');
+        SiteSetting::setValue('new_key', 'new_value');
 
         $this->assertDatabaseHas('site_settings', ['key' => 'new_key', 'value' => 'new_value']);
     }
 
-    public function test_site_setting_set_updates_existing_setting(): void
+    public function test_site_setting_set_value_updates_existing_setting(): void
     {
         SiteSetting::create(['key' => 'site_name', 'value' => 'Old Name']);
 
-        SiteSetting::set('site_name', 'Updated Name');
+        SiteSetting::setValue('site_name', 'Updated Name');
 
         $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'Updated Name']);
         $this->assertEquals(1, SiteSetting::where('key', 'site_name')->count());

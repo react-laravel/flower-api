@@ -240,7 +240,7 @@ class IdempotencyTest extends TestCase
         $response2->assertJson(['idempotent' => true]);
 
         // Verify the setting was NOT changed to 'Different Name'
-        $this->assertEquals('Flower Shop', \App\Models\SiteSetting::get('site_name'));
+        $this->assertEquals('Flower Shop', \App\Models\SiteSetting::getValue('site_name'));
     }
 
     /**
@@ -274,7 +274,7 @@ class IdempotencyTest extends TestCase
         $response2->assertJson(['idempotent' => true]);
 
         // Verify settings were NOT changed
-        $this->assertEquals('My Flower Shop', \App\Models\SiteSetting::get('site_name'));
-        $this->assertEquals('test@example.com', \App\Models\SiteSetting::get('contact_email'));
+        $this->assertEquals('My Flower Shop', \App\Models\SiteSetting::getValue('site_name'));
+        $this->assertEquals('test@example.com', \App\Models\SiteSetting::getValue('contact_email'));
     }
 }
