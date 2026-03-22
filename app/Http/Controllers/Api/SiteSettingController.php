@@ -14,6 +14,8 @@ class SiteSettingController extends Controller
 
     /**
      * Get all settings or a specific setting
+     * Note: only returns non-sensitive public settings via the bulk endpoint.
+     * Sensitive keys (password, secret, key, token) require admin auth.
      */
     public function index(Request $request): JsonResponse
     {
@@ -24,7 +26,14 @@ class SiteSettingController extends Controller
             return $this->success($value);
         }
 
-        $settings = SiteSetting::all()->pluck('value', 'key');
+        // Filter out potentially sensitive keys from public response
+        $sensitivePatterns = ['password', 'secret', 'key', 'token', 'credential', 'auth'];
+        $settings = SiteSetting::all()->pluck('value', 'key')
+            ->filter(fn($value, $settingKey) => !preg_match(
+                '/(' . implode('|', $sensitivePatterns) . ')/i',
+                $settingKey
+            ));
+
         return $this->success($settings);
     }
 
