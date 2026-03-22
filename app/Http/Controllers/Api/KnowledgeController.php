@@ -6,38 +6,57 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreKnowledgeRequest;
 use App\Http\Requests\UpdateKnowledgeRequest;
 use App\Http\Traits\ApiResponse;
-use App\Http\Traits\PaginatedIndex;
-use App\Http\Traits\ResourceController;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
-/**
- * Knowledge controller with DRY-optimized CRUD via ResourceController trait.
- */
 class KnowledgeController extends Controller
 {
-    use ApiResponse, PaginatedIndex, ResourceController;
+    use ApiResponse;
 
-    protected static function getModelClass(): string
+    public function index(): JsonResponse
     {
-        return Knowledge::class;
-    }
+        $knowledge = Knowledge::orderBy('category')->get();
 
-    public function index(Request $request): JsonResponse
-    {
-        return $this->paginatedIndex(
-            Knowledge::query()->orderBy('category')->orderBy('id'),
-            $request
-        );
+        return $this->success($knowledge);
     }
 
     public function store(StoreKnowledgeRequest $request): JsonResponse
     {
+        $this->authorize('create', Knowledge::class);
+
         $knowledge = Knowledge::create($request->validated());
 
         return $this->created($knowledge);
     }
 
-    // show(), update(), destroy() are provided by ResourceController trait
+    public function show(int $id): JsonResponse
+    {
+        $knowledge = Knowledge::findOrFail($id);
+
+        $this->authorize('view', $knowledge);
+
+        return $this->success($knowledge);
+    }
+
+    public function update(UpdateKnowledgeRequest $request, int $id): JsonResponse
+    {
+        $knowledge = Knowledge::findOrFail($id);
+
+        $this->authorize('update', $knowledge);
+
+        $knowledge->update($request->validated());
+
+        return $this->success($knowledge);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $knowledge = Knowledge::findOrFail($id);
+
+        $this->authorize('delete', $knowledge);
+
+        $knowledge->delete();
+
+        return $this->deleted();
+    }
 }

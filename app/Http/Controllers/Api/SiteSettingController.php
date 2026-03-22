@@ -4,24 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
-use App\Http\Traits\Idempotency;
 use App\Models\SiteSetting;
-use App\Services\DistributedLockService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class SiteSettingController extends Controller
 {
     use ApiResponse;
-    use Idempotency;
-
-    private DistributedLockService $lockService;
-
-    public function __construct()
-    {
-        $this->lockService = new DistributedLockService();
-    }
 
     /**
      * Get all settings or a specific setting
@@ -44,56 +33,33 @@ class SiteSettingController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        $this->authorize('update', SiteSetting::class);
+
+        $request->validate([
             'key' => 'required|string',
             'value' => 'nullable|string',
         ]);
 
-        return $this->handleIdempotentRequest($request, function () use ($validated) {
-            return $this->withLock('settings_update_' . $validated['key'], function () use ($validated) {
-                SiteSetting::set($validated['key'], $validated['value']);
-                return $this->success(null, '设置已更新');
-            });
-        });
+        SiteSetting::set($request->key, $request->value);
+
+        return $this->success(null, '设置已更新');
     }
 
     /**
-     * Batch update settings with proper transaction and distributed locking
+     * Batch update settings
      */
     public function batchUpdate(Request $request): JsonResponse
     {
-        return $this->handleIdempotentRequest($request, function () use ($request) {
-            $validated = $request->validate([
-                'settings' => 'required|array',
-            ]);
+        $this->authorize('update', SiteSetting::class);
 
-            return $this->withLock('settings_batch_update', function () use ($validated) {
-                return DB::transaction(function () use ($validated) {
-                    foreach ($validated['settings'] as $key => $value) {
-                        SiteSetting::set($key, $value);
-                    }
-                    return $this->success(null, '设置已批量更新');
-                });
-            });
-        });
-    }
+        $settings = $request->validate([
+            'settings' => 'required|array',
+        ]);
 
-    /**
-     * Execute callback with distributed lock
-     */
-    private function withLock(string $key, callable $callback): JsonResponse
-    {
-        $token = $this->lockService->acquire($key, 30);
-
-        if (!$token) {
-            return $this->error('服务忙，请稍后重试', 409);
+        foreach ($settings['settings'] as $key => $value) {
+            SiteSetting::set($key, $value);
         }
 
-        try {
-            $result = $callback();
-            return $result instanceof JsonResponse ? $result : $this->success($result);
-        } finally {
-            $this->lockService->release($key, $token);
-        }
+        return $this->success(null, '设置已批量更新');
     }
 }

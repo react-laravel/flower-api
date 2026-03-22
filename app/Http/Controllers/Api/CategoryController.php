@@ -6,48 +6,57 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Traits\ApiResponse;
-use App\Http\Traits\ResourceController;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
-/**
- * Category controller with DRY-optimized CRUD via ResourceController trait.
- */
 class CategoryController extends Controller
 {
-    use ApiResponse, ResourceController;
+    use ApiResponse;
 
-    protected static function getModelClass(): string
+    public function index(): JsonResponse
     {
-        return Category::class;
-    }
+        $categories = Category::orderBy('name')->get();
 
-    public function index(Request $request): JsonResponse
-    {
-        $perPage = min((int) $request->get('per_page', 20), 100);
-
-        $categories = Category::query()
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
-
-        return $this->success([
-            'data' => $categories->items(),
-            'pagination' => [
-                'current_page' => $categories->currentPage(),
-                'last_page' => $categories->lastPage(),
-                'per_page' => $categories->perPage(),
-                'total' => $categories->total(),
-            ],
-        ]);
+        return $this->success($categories);
     }
 
     public function store(StoreCategoryRequest $request): JsonResponse
     {
+        $this->authorize('create', Category::class);
+
         $category = Category::create($request->validated());
 
         return $this->created($category);
     }
 
-    // show(), update(), destroy() are provided by ResourceController trait
+    public function show(int $id): JsonResponse
+    {
+        $category = Category::findOrFail($id);
+
+        $this->authorize('view', $category);
+
+        return $this->success($category);
+    }
+
+    public function update(UpdateCategoryRequest $request, int $id): JsonResponse
+    {
+        $category = Category::findOrFail($id);
+
+        $this->authorize('update', $category);
+
+        $category->update($request->validated());
+
+        return $this->success($category);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $category = Category::findOrFail($id);
+
+        $this->authorize('delete', $category);
+
+        $category->delete();
+
+        return $this->deleted();
+    }
 }

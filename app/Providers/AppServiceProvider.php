@@ -2,13 +2,32 @@
 
 namespace App\Providers;
 
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
+use App\Models\Category;
+use App\Models\Flower;
+use App\Models\Knowledge;
+use App\Models\SiteSetting;
+use App\Policies\CategoryPolicy;
+use App\Policies\FlowerPolicy;
+use App\Policies\KnowledgePolicy;
+use App\Policies\SiteSettingPolicy;
+use App\Policies\UploadPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
+     */
+    protected array $policies = [
+        Flower::class => FlowerPolicy::class,
+        Category::class => CategoryPolicy::class,
+        Knowledge::class => KnowledgePolicy::class,
+        SiteSetting::class => SiteSettingPolicy::class,
+    ];
+
     /**
      * Register any application services.
      */
@@ -22,14 +41,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Global API rate limit: 60 requests per minute per IP
-        RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->ip());
-        });
+        // Register policies
+        foreach ($this->policies as $model => $policy) {
+            Gate::policy($model, $policy);
+        }
 
-        // Strict auth rate limit: 5 attempts per minute per IP (brute-force protection)
-        RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
-        });
+        // Register UploadPolicy for non-model authorization
+        Gate::define('upload', [UploadPolicy::class, 'create']);
+        Gate::define('upload.delete', [UploadPolicy::class, 'delete']);
     }
 }
