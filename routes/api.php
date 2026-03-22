@@ -13,13 +13,10 @@ use App\Http\Controllers\Api\UploadController;
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 
-// Public data routes (read-only)
-Route::get('/flowers', [FlowerController::class, 'index']);
-Route::get('/flowers/{flower}', [FlowerController::class, 'show']);
-Route::get('/categories', [CategoryController::class, 'index']);
-Route::get('/categories/{category}', [CategoryController::class, 'show']);
-Route::get('/knowledge', [KnowledgeController::class, 'index']);
-Route::get('/knowledge/{knowledge}', [KnowledgeController::class, 'show']);
+// Public data routes (read-only) - organized with apiResource
+Route::apiResource('flowers', FlowerController::class)->only(['index', 'show']);
+Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
+Route::apiResource('knowledge', KnowledgeController::class)->only(['index', 'show']);
 
 // Public chat routes
 Route::post('/chat', [ChatController::class, 'chat']);
@@ -38,15 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Admin routes - require admin + auth (for CRUD operations)
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::post('/flowers', [FlowerController::class, 'store']);
-    Route::put('/flowers/{flower}', [FlowerController::class, 'update']);
-    Route::delete('/flowers/{flower}', [FlowerController::class, 'destroy']);
-    Route::post('/categories', [CategoryController::class, 'store']);
-    Route::put('/categories/{category}', [CategoryController::class, 'update']);
-    Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
-    Route::post('/knowledge', [KnowledgeController::class, 'store']);
-    Route::put('/knowledge/{knowledge}', [KnowledgeController::class, 'update']);
-    Route::delete('/knowledge/{knowledge}', [KnowledgeController::class, 'destroy']);
+    Route::apiResource('flowers', FlowerController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('knowledge', KnowledgeController::class)->only(['store', 'update', 'destroy']);
 
     // Settings
     Route::put('/settings', [SiteSettingController::class, 'update']);
