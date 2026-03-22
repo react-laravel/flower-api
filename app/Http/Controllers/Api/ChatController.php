@@ -13,14 +13,22 @@ class ChatController extends Controller
 {
     use ApiResponse;
 
+    /**
+     * Maximum knowledge items to load per chat request.
+     */
+    private const MAX_KNOWLEDGE_ITEMS = 20;
+
+    /**
+     * Handle chat message with local knowledge base.
+     */
     public function chat(Request $request): JsonResponse
     {
-        // Rate limiting: 10 requests per minute per IP
         $key = 'chat:' . $request->ip();
         if (RateLimiter::tooManyAttempts($key, 10)) {
+            $retryAfter = RateLimiter::availableIn($key);
             return response()->json([
                 'error' => 'Too many requests. Please wait.',
-                'retry_after' => RateLimiter::availableIn($key),
+                'retry_after' => $retryAfter,
             ], 429);
         }
         RateLimiter::hit($key, 60);
@@ -30,12 +38,15 @@ class ChatController extends Controller
         ]);
 
         $message = $request->input('message');
+        $query = '%' . mb_strtolower($message) . '%';
 
-        // Use keyword search instead of all() to avoid OOM
-        $keywords = $this->extractKeywords($message);
-        $relevantKnowledge = $this->searchKnowledge($keywords);
+        // Use DB-level LIKE with limit — no PHP loops, no full table scan
+        $relevantKnowledge = Knowledge::where(function ($q) use ($query) {
+            $q->whereRaw('LOWER(question) LIKE ?', [$query])
+              ->orWhereRaw('LOWER(answer) LIKE ?', [$query]);
+        })->limit(self::MAX_KNOWLEDGE_ITEMS)->get(['id', 'question', 'answer']);
 
-        $reply = $this->generateReply($message, $relevantKnowledge);
+        $reply = $this->generateReply($relevantKnowledge);
 
         return $this->success([
             'reply' => $reply,
@@ -44,40 +55,32 @@ class ChatController extends Controller
     }
 
     /**
-     * Extract keywords from message.
+     * Get knowledge base for context.
      */
-    private function extractKeywords(string $message): array
+    public function knowledge(Request $request): JsonResponse
     {
-        $stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'what', 'how', 'why', 'when', 'where', '?'];
-        $words = preg_split('/\s+/', strtolower($message));
-        return array_filter($words, fn($w) => strlen($w) > 2 && !in_array($w, $stopWords));
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $page = max((int) $request->get('page', 1), 1);
+
+        $knowledge = Knowledge::query()
+            ->orderBy('id', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return $this->success([
+            'data' => $knowledge->items(),
+            'pagination' => [
+                'current_page' => $knowledge->currentPage(),
+                'last_page' => $knowledge->lastPage(),
+                'per_page' => $knowledge->perPage(),
+                'total' => $knowledge->total(),
+            ],
+        ]);
     }
 
     /**
-     * Search knowledge base with keywords (paginated/chunked).
+     * Generate reply from knowledge items.
      */
-    private function searchKnowledge(array $keywords)
-    {
-        if (empty($keywords)) {
-            return collect([]);
-        }
-
-        $query = Knowledge::query();
-        foreach ($keywords as $keyword) {
-            $query->where(function ($q) use ($keyword) {
-                $q->where('question', 'like', "%{$keyword}%")
-                  ->orWhere('answer', 'like', "%{$keyword}%");
-            });
-        }
-
-        // Limit results to 20 to avoid large payloads
-        return $query->limit(20)->get();
-    }
-
-    /**
-     * Generate reply based on message and knowledge.
-     */
-    private function generateReply(string $message, $knowledge)
+    private function generateReply($knowledge)
     {
         if ($knowledge->isEmpty()) {
             return "抱歉，我没有找到相关信息。";
@@ -86,13 +89,6 @@ class ChatController extends Controller
         $first = $knowledge->first();
         $excerpt = mb_substr($first->answer ?? $first->question, 0, 200);
 
-        return "找到以下信息：{$excerpt}...";
-    }
-
-    public function knowledge(): JsonResponse
-    {
-        $knowledge = Knowledge::orderBy('category')->get();
-
-        return $this->success($knowledge);
+        return "找到以下信息：{$excerpt}" . (mb_strlen($first->answer ?? '') > 200 ? '...' : '');
     }
 }

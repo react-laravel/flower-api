@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Support\Facades\Log;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,21 +22,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Set default database query timeout (in seconds)
-        // Prevents slow queries from hanging indefinitely
-        $queryTimeout = (int) env('DB_QUERY_TIMEOUT', 10);
+        // Global API rate limit: 60 requests per minute per IP
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
 
-        DB::connection()->getPdo()?->setAttribute(\PDO::ATTR_TIMEOUT, $queryTimeout);
-
-        // Log slow queries (> 1 second) for monitoring
-        DB::listen(function (QueryExecuted $query) use ($queryTimeout) {
-            if ($query->time > 1000) { // > 1 second
-                Log::warning('Slow query detected', [
-                    'sql' => $query->sql,
-                    'bindings' => $query->bindings,
-                    'time_ms' => $query->time,
-                ]);
-            }
+        // Strict auth rate limit: 5 attempts per minute per IP (brute-force protection)
+        RateLimiter::for('auth', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
         });
     }
 }

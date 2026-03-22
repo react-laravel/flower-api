@@ -8,16 +8,29 @@ use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Traits\ApiResponse;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
     use ApiResponse;
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $categories = Category::orderBy('name')->get();
+        $perPage = min((int) $request->get('per_page', 20), 100);
 
-        return $this->success($categories);
+        $categories = Category::query()
+            ->orderBy('id', 'desc')
+            ->paginate($perPage);
+
+        return $this->success([
+            'data' => $categories->items(),
+            'pagination' => [
+                'current_page' => $categories->currentPage(),
+                'last_page' => $categories->lastPage(),
+                'per_page' => $categories->perPage(),
+                'total' => $categories->total(),
+            ],
+        ]);
     }
 
     public function store(StoreCategoryRequest $request): JsonResponse

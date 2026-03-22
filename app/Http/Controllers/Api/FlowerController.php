@@ -6,39 +6,49 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreFlowerRequest;
 use App\Http\Requests\UpdateFlowerRequest;
 use App\Http\Traits\ApiResponse;
-use App\Http\Traits\PaginatedIndex;
 use App\Models\Flower;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class FlowerController extends Controller
 {
-    use ApiResponse, PaginatedIndex;
+    use ApiResponse;
 
     public function index(Request $request): JsonResponse
     {
-        return $this->paginatedIndex(Flower::query()->orderBy('created_at', 'desc'), $request);
-    }
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $page = max((int) $request->get('page', 1), 1);
 
-    protected function applyFilters(Builder $query, Request $request): Builder
-    {
+        $query = Flower::query();
+
         if ($request->has('category') && $request->category !== 'all') {
             $query->where('category', $request->category);
         }
 
         if ($request->has('featured')) {
-            $query->where('featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
+            $query->where('featured', $request->featured === 'true');
         }
 
-        if ($request->has('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('name_en', 'like', "%{$request->search}%");
+        // Search with length limit to prevent ReDoS
+        $search = mb_substr($request->get('search', ''), 0, 100);
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('name_en', 'like', "%{$search}%");
             });
         }
 
-        return $query;
+        $flowers = $query->orderBy('id', 'desc')->paginate($perPage, ['*'], 'page', $page);
+
+        return $this->success([
+            'data' => $flowers->items(),
+            'pagination' => [
+                'current_page' => $flowers->currentPage(),
+                'last_page' => $flowers->lastPage(),
+                'per_page' => $flowers->perPage(),
+                'total' => $flowers->total(),
+            ],
+        ]);
     }
 
     public function store(StoreFlowerRequest $request): JsonResponse
