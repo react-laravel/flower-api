@@ -9,9 +9,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\SiteSettingController;
 use App\Http\Controllers\Api\UploadController;
 
-// Public auth routes
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/register', [AuthController::class, 'register']);
+// Public auth routes (rate-limited to prevent brute force)
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 
 // Public data routes (read-only)
 Route::get('/flowers', [FlowerController::class, 'index']);
