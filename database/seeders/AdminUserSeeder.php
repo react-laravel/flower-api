@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AdminUserSeeder extends Seeder
 {
@@ -22,7 +23,7 @@ class AdminUserSeeder extends Seeder
             [
                 'name' => '管理员',
                 'email' => 'admin@flower.com',
-                'password' => Hash::make('admin123'),
+                'password' => Hash::make(env('ADMIN_DEFAULT_PASSWORD', Str::random(24))),
                 'is_admin' => true,
             ]
         );
