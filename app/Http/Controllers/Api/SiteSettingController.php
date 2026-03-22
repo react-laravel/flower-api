@@ -12,6 +12,10 @@ class SiteSettingController extends Controller
 {
     use ApiResponse;
 
+    private const SENSITIVE_PATTERNS = [
+        'smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth',
+    ];
+
     /**
      * Get all settings or a specific setting
      * Note: only returns non-sensitive public settings via the bulk endpoint.
@@ -22,9 +26,7 @@ class SiteSettingController extends Controller
         $key = $request->query('key');
 
         if ($key) {
-            // Check if the requested key matches sensitive patterns
-            $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
-            if (preg_match('/(' . implode('|', $sensitivePatterns) . ')/i', $key)) {
+            if ($this->keyMatchesSensitivePattern($key)) {
                 return $this->error('无效的设置键', 400);
             }
 
@@ -32,15 +34,15 @@ class SiteSettingController extends Controller
             return $this->success($value);
         }
 
-        // Filter out potentially sensitive keys from public response
-        $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
         $settings = SiteSetting::all()->pluck('value', 'key')
-            ->filter(fn($value, $settingKey) => !preg_match(
-                '/(' . implode('|', $sensitivePatterns) . ')/i',
-                $settingKey
-            ));
+            ->filter(fn($value, $settingKey) => !$this->keyMatchesSensitivePattern($settingKey));
 
         return $this->success($settings);
+    }
+
+    private function keyMatchesSensitivePattern(string $key): bool
+    {
+        return (bool) preg_match('/(' . implode('|', self::SENSITIVE_PATTERNS) . ')/i', $key);
     }
 
     /**
