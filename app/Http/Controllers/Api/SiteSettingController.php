@@ -27,7 +27,7 @@ class SiteSettingController extends Controller
         }
 
         // Filter out potentially sensitive keys from public response
-        $sensitivePatterns = ['password', 'secret', 'key', 'token', 'credential', 'auth'];
+        $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
         $settings = SiteSetting::all()->pluck('value', 'key')
             ->filter(fn($value, $settingKey) => !preg_match(
                 '/(' . implode('|', $sensitivePatterns) . ')/i',
