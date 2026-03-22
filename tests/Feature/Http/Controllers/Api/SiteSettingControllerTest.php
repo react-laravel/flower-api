@@ -42,6 +42,46 @@ class SiteSettingControllerTest extends TestCase
         $this->assertEquals('Flower Shop', $response->json('data'));
     }
 
+    public function test_index_rejects_sensitive_keys_in_query_parameter(): void
+    {
+        SiteSetting::create(['key' => 'smtp_password', 'value' => 'secret123']);
+
+        $response = $this->getJson('/api/settings?key=smtp_password');
+
+        $response->assertStatus(400)
+            ->assertJson(['success' => false, 'message' => '无效的设置键']);
+    }
+
+    public function test_index_rejects_aws_sensitive_keys(): void
+    {
+        SiteSetting::create(['key' => 'aws_access_key', 'value' => 'AKIAIOSFODNN7EXAMPLE']);
+
+        $response = $this->getJson('/api/settings?key=aws_access_key');
+
+        $response->assertStatus(400)
+            ->assertJson(['success' => false, 'message' => '无效的设置键']);
+    }
+
+    public function test_index_rejects_password_in_key_name(): void
+    {
+        SiteSetting::create(['key' => 'database_password', 'value' => 'mysecretpass']);
+
+        $response = $this->getJson('/api/settings?key=database_password');
+
+        $response->assertStatus(400)
+            ->assertJson(['success' => false, 'message' => '无效的设置键']);
+    }
+
+    public function test_index_rejects_secret_key(): void
+    {
+        SiteSetting::create(['key' => 'api_secret', 'value' => 'secretvalue']);
+
+        $response = $this->getJson('/api/settings?key=api_secret');
+
+        $response->assertStatus(400)
+            ->assertJson(['success' => false, 'message' => '无效的设置键']);
+    }
+
     public function test_update_creates_or_updates_setting(): void
     {
         $auth = $this->actingAsAdmin();
