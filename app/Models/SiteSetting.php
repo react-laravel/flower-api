@@ -9,8 +9,8 @@ class SiteSetting extends Model
 {
     protected $fillable = ['key', 'value'];
 
-    protected $cachePrefix = 'site_setting:';
-    protected $cacheTtlSeconds = 3600;
+    protected static $cachePrefix = 'site_setting:';
+    protected static $cacheTtlSeconds = 3600;
 
     public static function getValue($key, $default = null)
     {
