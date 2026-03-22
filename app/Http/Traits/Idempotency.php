@@ -5,6 +5,10 @@ namespace App\Http\Traits;
 use App\Services\IdempotencyService;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * @deprecated Not used by any controller. Remove in a future cleanup.
+ *             The IdempotencyService can be injected directly where needed.
+ */
 trait Idempotency
 {
     protected IdempotencyService $idempotencyService;

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 
 /**
+ * @deprecated Not used by any controller. Remove in a future cleanup.
+ *             Common CRUD patterns can be implemented directly in base Controller or dedicated action classes.
+ *
  * Shared CRUD operations for resource controllers.
  * Fixes DRY violations by extracting common find-or-fail + operation patterns.
  */

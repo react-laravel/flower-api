@@ -8,6 +8,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
+ * @deprecated Not used by any controller. Remove in a future cleanup.
+ *             Pagination logic should be in a dedicated Paginator class or controller method.
+ *
  * Shared pagination logic for resource controllers.
  */
 trait PaginatedIndex
