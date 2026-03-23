@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /home/ecs-user/flower-api
+
+claude --permission-mode bypassPermissions --print "扫描所有源码文件，找出缺少测试的类/函数，优先处理超过600行的大文件，生成测试骨架（describe/test/it块），Laravel/PHP用tests/Unit/ModelNameTest.php格式，JS/TS用__tests__/ModelName.test.ts格式，完成后 commit 到新分支并 push，PR title：[AI-07] Test: add test stubs - flower-api - 2026-03-21"
