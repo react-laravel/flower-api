@@ -13,6 +13,19 @@ use Illuminate\Support\Collection;
 class SiteSettingService
 {
     /**
+     * Patterns that indicate a sensitive setting key.
+     */
+    private const SENSITIVE_PATTERNS = [
+        'smtp_',
+        'aws_',
+        'password',
+        'secret',
+        'key',
+        'token',
+        'credential',
+        'auth',
+    ];
+    /**
      * Get a setting value by key.
      */
     public function get(string $key, mixed $default = null): mixed
@@ -84,5 +97,25 @@ class SiteSettingService
     public function delete(string $key): bool
     {
         return SiteSetting::where('key', $key)->delete() > 0;
+    }
+
+    /**
+     * Check if a key matches sensitive patterns.
+     */
+    public function isSensitiveKey(string $key): bool
+    {
+        return (bool) preg_match(
+            '/(' . implode('|', self::SENSITIVE_PATTERNS) . ')/i',
+            $key
+        );
+    }
+
+    /**
+     * Get all settings filtered to exclude sensitive keys.
+     */
+    public function allPublic(): Collection
+    {
+        return SiteSetting::all()->pluck('value', 'key')
+            ->filter(fn($value, $settingKey) => !$this->isSensitiveKey($settingKey));
     }
 }

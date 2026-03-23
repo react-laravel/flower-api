@@ -13,16 +13,9 @@ class SiteSettingController extends Controller
 {
     use ApiResponse;
 
-    private const SENSITIVE_PATTERNS = [
-        'smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth',
-    ];
-
-    private SiteSettingService $settingService;
-
-    public function __construct(SiteSettingService $settingService)
-    {
-        $this->settingService = $settingService;
-    }
+    public function __construct(
+        private SiteSettingService $siteSettingService
+    ) {}
 
     /**
      * Get all settings or a specific setting
@@ -34,23 +27,16 @@ class SiteSettingController extends Controller
         $key = $request->query('key');
 
         if ($key) {
-            if ($this->keyMatchesSensitivePattern($key)) {
+            if ($this->siteSettingService->isSensitiveKey($key)) {
                 return $this->error('无效的设置键', 400);
             }
 
-            $value = $this->settingService->get($key);
+            $value = $this->siteSettingService->get($key);
             return $this->success($value);
         }
 
-        $settings = SiteSetting::all()->pluck('value', 'key')
-            ->filter(fn($value, $settingKey) => !$this->keyMatchesSensitivePattern($settingKey));
-
+        $settings = $this->siteSettingService->allPublic();
         return $this->success($settings);
-    }
-
-    private function keyMatchesSensitivePattern(string $key): bool
-    {
-        return (bool) preg_match('/(' . implode('|', self::SENSITIVE_PATTERNS) . ')/i', $key);
     }
 
     /**
@@ -65,7 +51,7 @@ class SiteSettingController extends Controller
             'value' => 'nullable|string',
         ]);
 
-        $this->settingService->set($request->key, $request->value);
+        $this->siteSettingService->set($request->key, $request->value);
 
         return $this->success(null, '设置已更新');
     }
@@ -81,7 +67,7 @@ class SiteSettingController extends Controller
             'settings' => 'required|array',
         ]);
 
-        $this->settingService->batchSet($settings['settings']);
+        $this->siteSettingService->batchSet($settings['settings']);
 
         return $this->success(null, '设置已批量更新');
     }
