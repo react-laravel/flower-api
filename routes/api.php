@@ -23,7 +23,7 @@ Route::post('/chat', [ChatController::class, 'chat']);
 Route::get('/chat/knowledge', [ChatController::class, 'knowledge']);
 
 // Public settings routes (read-only)
-Route::get('/site-settings', [SiteSettingController::class, 'index']);
+Route::get('/settings', [SiteSettingController::class, 'index']);
 
 // Protected routes (require authentication)
 Route::middleware('auth:sanctum')->group(function () {
@@ -40,8 +40,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::apiResource('knowledge', KnowledgeController::class)->only(['store', 'update', 'destroy']);
 
     // Settings
-    Route::put('/site-settings', [SiteSettingController::class, 'update']);
-    Route::post('/site-settings/batch', [SiteSettingController::class, 'batchUpdate']);
+    Route::put('/settings', [SiteSettingController::class, 'update']);
+    Route::post('/settings/batch', [SiteSettingController::class, 'batchUpdate']);
 
     // Upload
     Route::post('/upload', [UploadController::class, 'upload']);

@@ -15,33 +15,35 @@ class IdempotencyTest extends TestCase
     use RefreshDatabase;
 
     protected User $adminUser;
+    protected string $adminToken;
 
     protected function setUp(): void
     {
         parent::setUp();
-        // Use array cache for testing
         Cache::flush();
 
-        // Create admin user for authentication
-        $this->adminUser = User::create([
-            'name' => 'Test Admin',
-            'email' => 'admin@test.com',
-            'password' => bcrypt('password'),
-            'is_admin' => true,
-        ]);
+        // Create admin user using factory (properly sets is_admin via fillable)
+        $this->adminUser = User::factory()->create(['is_admin' => true]);
+        $this->adminToken = $this->adminUser->createToken('admin')->plainTextToken;
     }
 
     /**
-     * Test that duplicate requests with same idempotency key return cached response
+     * Helper to make authenticated requests with admin Bearer token.
+     */
+    protected function adminRequest(): static
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
+    }
+
+    /**
+     * Test that duplicate requests with same idempotency key return cached response.
      */
     public function test_duplicate_request_returns_cached_response(): void
     {
-        Sanctum::actingAs($this->adminUser);
-
         $idempotencyKey = 'test-key-' . uniqid();
 
         // First request - create a flower
-        $response1 = $this->postJson('/api/flowers', [
+        $response1 = $this->adminRequest()->postJson('/api/flowers', [
             'name' => 'Rose',
             'name_en' => 'Rose',
             'category' => 'romantic',
@@ -64,7 +66,7 @@ class IdempotencyTest extends TestCase
         $this->assertDatabaseHas('flowers', ['name' => 'Rose']);
 
         // Second request with same idempotency key - should return cached response
-        $response2 = $this->postJson('/api/flowers', [
+        $response2 = $this->adminRequest()->postJson('/api/flowers', [
             'name' => 'Tulip',
             'name_en' => 'Tulip',
             'category' => 'spring',
@@ -88,13 +90,11 @@ class IdempotencyTest extends TestCase
     }
 
     /**
-     * Test that request without idempotency key works normally
+     * Test that request without idempotency key works normally.
      */
     public function test_request_without_idempotency_key_works_normally(): void
     {
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->postJson('/api/flowers', [
+        $response = $this->adminRequest()->postJson('/api/flowers', [
             'name' => 'Daisy',
             'name_en' => 'Daisy',
             'category' => 'nature',
@@ -114,20 +114,18 @@ class IdempotencyTest extends TestCase
     }
 
     /**
-     * Test that concurrent locked requests get 409 error
+     * Test that concurrent locked requests get 409 error.
      */
     public function test_concurrent_locked_requests_get_409(): void
     {
-        Sanctum::actingAs($this->adminUser);
-
         $idempotencyKey = 'concurrent-key-' . uniqid();
 
         // Simulate a lock being held by setting it directly
         $idempotencyService = new IdempotencyService();
         $idempotencyService->acquireLock($idempotencyKey, 30);
 
-        // Request should get 409 since lock is held
-        $response = $this->postJson('/api/flowers', [
+        // Request should get 409 since lock is held and not yet processed
+        $response = $this->adminRequest()->postJson('/api/flowers', [
             'name' => 'Orchid',
             'name_en' => 'Orchid',
             'category' => 'exotic',
@@ -146,12 +144,10 @@ class IdempotencyTest extends TestCase
     }
 
     /**
-     * Test flower update with idempotency
+     * Test flower update with idempotency.
      */
     public function test_flower_update_with_idempotency_key(): void
     {
-        Sanctum::actingAs($this->adminUser);
-
         $flower = Flower::create([
             'name' => 'Original Rose',
             'name_en' => 'Original Rose',
@@ -170,7 +166,7 @@ class IdempotencyTest extends TestCase
         $idempotencyKey = 'update-key-' . uniqid();
 
         // First update request
-        $response1 = $this->putJson("/api/flowers/{$flower->id}", [
+        $response1 = $this->adminRequest()->putJson("/api/flowers/{$flower->id}", [
             'name' => 'Updated Rose',
             'name_en' => 'Updated Rose',
             'category' => 'romantic',
@@ -189,7 +185,7 @@ class IdempotencyTest extends TestCase
         $this->assertEquals('Updated Rose', $response1->json('data.name'));
 
         // Second request with same key - should return cached response
-        $response2 = $this->putJson("/api/flowers/{$flower->id}", [
+        $response2 = $this->adminRequest()->putJson("/api/flowers/{$flower->id}", [
             'name' => 'Different Name',
             'name_en' => 'Different Name',
             'category' => 'romantic',
@@ -214,16 +210,15 @@ class IdempotencyTest extends TestCase
     }
 
     /**
-     * Test site settings update with idempotency and distributed lock
+     * Test site settings update with idempotency.
+     * Note: route is /api/settings (not /api/site-settings).
      */
     public function test_site_setting_update_with_idempotency(): void
     {
-        Sanctum::actingAs($this->adminUser);
-
         $idempotencyKey = 'setting-key-' . uniqid();
 
         // First request - update setting
-        $response1 = $this->putJson('/api/settings', [
+        $response1 = $this->adminRequest()->putJson('/api/settings', [
             'key' => 'site_name',
             'value' => 'Flower Shop',
         ], ['X-Idempotency-Key' => $idempotencyKey]);
@@ -231,7 +226,7 @@ class IdempotencyTest extends TestCase
         $response1->assertStatus(200);
 
         // Second request with same key - should return cached response
-        $response2 = $this->putJson('/api/settings', [
+        $response2 = $this->adminRequest()->putJson('/api/settings', [
             'key' => 'site_name',
             'value' => 'Different Name',
         ], ['X-Idempotency-Key' => $idempotencyKey]);
@@ -244,16 +239,15 @@ class IdempotencyTest extends TestCase
     }
 
     /**
-     * Test batch settings update with idempotency and distributed lock
+     * Test batch settings update with idempotency.
+     * Note: route is /api/settings/batch (not /api/site-settings/batch).
      */
     public function test_batch_settings_update_with_idempotency(): void
     {
-        Sanctum::actingAs($this->adminUser);
-
         $idempotencyKey = 'batch-setting-key-' . uniqid();
 
         // First request - batch update
-        $response1 = $this->postJson('/api/settings/batch', [
+        $response1 = $this->adminRequest()->postJson('/api/settings/batch', [
             'settings' => [
                 'site_name' => 'My Flower Shop',
                 'contact_email' => 'test@example.com',
@@ -263,7 +257,7 @@ class IdempotencyTest extends TestCase
         $response1->assertStatus(200);
 
         // Second request with same key - should return cached response
-        $response2 = $this->postJson('/api/settings/batch', [
+        $response2 = $this->adminRequest()->postJson('/api/settings/batch', [
             'settings' => [
                 'site_name' => 'Different Shop',
                 'contact_email' => 'other@example.com',

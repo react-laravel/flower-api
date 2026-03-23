@@ -9,7 +9,6 @@ use App\Models\SiteSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 
 class SiteSettingController extends Controller
 {
@@ -52,12 +51,7 @@ class SiteSettingController extends Controller
     public function update(Request $request): JsonResponse
     {
         return $this->handleIdempotentRequest($request, function () use ($request) {
-            if (!Gate::allows('update', SiteSetting::class)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => '需要管理员权限',
-                ], 403);
-            }
+            $this->authorize('update', new SiteSetting());
 
             $request->validate([
                 'key' => 'required|string',
@@ -77,19 +71,14 @@ class SiteSettingController extends Controller
     public function batchUpdate(Request $request): JsonResponse
     {
         return $this->handleIdempotentRequest($request, function () use ($request) {
-            if (!Gate::allows('update', SiteSetting::class)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => '需要管理员权限',
-                ], 403);
-            }
+            $this->authorize('update', new SiteSetting());
 
-            $validated = $request->validate([
+            $settings = $request->validate([
                 'settings' => 'required|array',
             ]);
 
-            return DB::transaction(function () use ($validated) {
-                foreach ($validated['settings'] as $key => $value) {
+            return DB::transaction(function () use ($settings) {
+                foreach ($settings['settings'] as $key => $value) {
                     SiteSetting::setValue($key, $value);
                 }
                 return $this->success(null, '设置已批量更新');

@@ -20,7 +20,6 @@ class KnowledgeSearchService
     private const CONTAINS_MATCH_SCORE = 80;
     private const KEYWORD_MATCH_MAX_SCORE = 60;
     private const MIN_SCORE_THRESHOLD = 20;
-    private const WHITESPACE_PATTERN = '/\s+/';
 
     /**
      * Search knowledge base for best matching answer.
@@ -94,8 +93,8 @@ class KnowledgeSearchService
      */
     private function calculateKeywordScore(string $query, string $question): int
     {
-        $queryWords = array_filter(explode(' ', preg_replace(self::WHITESPACE_PATTERN, ' ', trim($query))));
-        $questionWords = explode(' ', preg_replace(self::WHITESPACE_PATTERN, ' ', trim($question)));
+        $queryWords = array_filter(explode(' ', preg_replace('/\s+/', ' ', trim($query))));
+        $questionWords = explode(' ', preg_replace('/\s+/', ' ', trim($question)));
 
         if (count($queryWords) === 0) {
             return 0;

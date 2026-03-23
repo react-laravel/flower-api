@@ -47,7 +47,7 @@ class AuthService
         return User::create([
             'name' => $name,
             'email' => $email,
-            'password' => $this->hasher->make($password),
+            'password' => $password,
         ]);
     }
 

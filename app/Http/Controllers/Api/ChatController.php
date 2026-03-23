@@ -17,7 +17,6 @@ class ChatController extends Controller
     use ApiResponse;
 
     private const QUERY_TIMEOUT_SECONDS = 5;
-    private const MAX_MESSAGE_LENGTH = 500;
 
     private ChatService $chatService;
 
@@ -32,7 +31,7 @@ class ChatController extends Controller
     public function chat(Request $request): JsonResponse
     {
         $request->validate([
-            'message' => 'required|string|max:' . self::MAX_MESSAGE_LENGTH,
+            'message' => 'required|string|max:500',
         ]);
 
         $reply = $this->chatService->processMessage($request->message);

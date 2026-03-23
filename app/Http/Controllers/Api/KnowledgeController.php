@@ -10,8 +10,8 @@ use App\Http\Traits\Idempotency;
 use App\Http\Traits\ResourceListTrait;
 use App\Models\Knowledge;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 
 class KnowledgeController extends Controller
 {
@@ -25,7 +25,7 @@ class KnowledgeController extends Controller
     public function store(StoreKnowledgeRequest $request): JsonResponse
     {
         return $this->handleIdempotentRequest($request, function () use ($request) {
-            Gate::authorize('create', Knowledge::class);
+            $this->authorize('create', Knowledge::class);
 
             return DB::transaction(function () use ($request) {
                 $knowledge = Knowledge::create($request->validated());
@@ -38,7 +38,7 @@ class KnowledgeController extends Controller
     {
         $knowledge = Knowledge::findOrFail($id);
 
-        Gate::authorize('view', $knowledge);
+        $this->authorize('view', $knowledge);
 
         return $this->success($knowledge);
     }
@@ -48,7 +48,7 @@ class KnowledgeController extends Controller
         return $this->handleIdempotentRequest($request, function () use ($request, $id) {
             $knowledge = Knowledge::findOrFail($id);
 
-            Gate::authorize('update', $knowledge);
+            $this->authorize('update', $knowledge);
 
             return DB::transaction(function () use ($knowledge, $request) {
                 $knowledge->update($request->validated());
@@ -57,12 +57,12 @@ class KnowledgeController extends Controller
         });
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        return $this->handleIdempotentRequest(request(), function () use ($id) {
+        return $this->handleIdempotentRequest($request, function () use ($id) {
             $knowledge = Knowledge::findOrFail($id);
 
-            Gate::authorize('delete', $knowledge);
+            $this->authorize('delete', $knowledge);
 
             return DB::transaction(function () use ($knowledge) {
                 $knowledge->delete();

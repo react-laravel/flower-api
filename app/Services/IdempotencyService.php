@@ -2,17 +2,24 @@
 
 namespace App\Services;
 
-use App\Services\Traits\CacheLocking;
+use Illuminate\Support\Facades\Cache;
 
 class IdempotencyService
 {
-    use CacheLocking;
-
     private const DEFAULT_TTL = 86400; // 24 hours
+    private string $cacheStore;
 
     public function __construct(string $cacheStore = null)
     {
-        $this->initCacheStore($cacheStore);
+        $this->cacheStore = $cacheStore ?? config('cache.default', 'redis');
+    }
+
+    /**
+     * Get the cache store instance
+     */
+    protected function cache(): \Illuminate\Contracts\Cache\Repository
+    {
+        return Cache::store($this->cacheStore);
     }
 
     /**
@@ -44,33 +51,33 @@ class IdempotencyService
     }
 
     /**
-     * Acquire a lock for processing (atomic operation).
+     * Check if a lock is held (for distributed locking)
      */
-    public function acquireLock(string $key, int $ttl = 30): bool
+    public function isLocked(string $key): bool
     {
-        return $this->acquireLockInternal($key, $ttl);
+        return $this->cache()->has($this->getLockKey($key));
     }
 
     /**
-     * Release a lock.
+     * Acquire a lock for processing (atomic operation)
+     */
+    public function acquireLock(string $key, int $ttl = 30): bool
+    {
+        $lockKey = $this->getLockKey($key);
+        // Use add() for atomic lock acquisition (SETNX behavior)
+        // Returns true if lock was acquired, false if already held
+        return $this->cache()->add($lockKey, [
+            'locked_at' => now()->toIso8601String(),
+            'owner' => uniqid('lock_', true),
+        ], $ttl);
+    }
+
+    /**
+     * Release a lock
      */
     public function releaseLock(string $key): void
     {
         $this->cache()->forget($this->getLockKey($key));
-    }
-
-    /**
-     * Internal lock acquisition that returns owner token.
-     */
-    private function acquireLockInternal(string $key, int $ttl): bool
-    {
-        $lockKey = $this->getLockKey($key);
-        $owner = uniqid('lock_', true);
-
-        return $this->cache()->add($lockKey, [
-            'locked_at' => now()->toIso8601String(),
-            'owner' => $owner,
-        ], $ttl);
     }
 
     /**
@@ -84,7 +91,7 @@ class IdempotencyService
     /**
      * Generate a lock key
      */
-    protected function getLockKey(string $key): string
+    private function getLockKey(string $key): string
     {
         return 'idempotency_lock:' . $key;
     }
