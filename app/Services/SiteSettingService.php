@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\SiteSetting;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Site setting service handling configuration business logic.
@@ -12,13 +13,20 @@ use Illuminate\Support\Collection;
  */
 class SiteSettingService
 {
+    private const CACHE_TTL_SECONDS = 300; // 5 minutes
+    private const CACHE_KEY_PREFIX = 'site_setting:';
+
     /**
      * Get a setting value by key.
+     * Results are cached for CACHE_TTL_SECONDS to avoid repeated DB queries.
      */
     public function get(string $key, mixed $default = null): mixed
     {
-        $setting = SiteSetting::where('key', $key)->first();
-        return $setting ? $setting->value : $default;
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . $key,
+            self::CACHE_TTL_SECONDS,
+            fn () => $this->getUncached($key, $default)
+        );
     }
 
     /**
@@ -26,10 +34,15 @@ class SiteSettingService
      */
     public function set(string $key, mixed $value): SiteSetting
     {
-        return SiteSetting::updateOrCreate(
+        $setting = SiteSetting::updateOrCreate(
             ['key' => $key],
             ['value' => $value]
         );
+
+        // Bust the cache so next get() reflects the new value
+        Cache::forget(self::CACHE_KEY_PREFIX . $key);
+
+        return $setting;
     }
 
     /**
@@ -42,15 +55,22 @@ class SiteSettingService
 
     /**
      * Get multiple settings by keys.
+     * Uses a single DB query; result array preserves key order.
+     *
+     * @param array<string> $keys
+     * @return array<string, mixed>
      */
     public function getMany(array $keys): array
     {
-        $settings = SiteSetting::whereIn('key', $keys)->get();
-        $result = [];
+        if ($keys === []) {
+            return [];
+        }
 
+        $values = SiteSetting::whereIn('key', $keys)->get()->pluck('value', 'key');
+
+        $result = [];
         foreach ($keys as $key) {
-            $setting = $settings->firstWhere('key', $key);
-            $result[$key] = $setting ? $setting->value : null;
+            $result[$key] = $values[$key] ?? null;
         }
 
         return $result;
@@ -58,11 +78,15 @@ class SiteSettingService
 
     /**
      * Batch update multiple settings.
+     * Invalidates cache for each updated key.
+     *
+     * @param array<string, mixed> $settings
      */
     public function batchSet(array $settings): void
     {
         foreach ($settings as $key => $value) {
-            $this->set($key, $value);
+            SiteSetting::updateOrCreate(['key' => $key], ['value' => $value]);
+            Cache::forget(self::CACHE_KEY_PREFIX . $key);
         }
     }
 
@@ -79,6 +103,21 @@ class SiteSettingService
      */
     public function delete(string $key): bool
     {
-        return SiteSetting::where('key', $key)->delete() > 0;
+        $deleted = SiteSetting::where('key', $key)->delete() > 0;
+
+        if ($deleted) {
+            Cache::forget(self::CACHE_KEY_PREFIX . $key);
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Uncached read — used internally and by cache misses.
+     */
+    private function getUncached(string $key, mixed $default): mixed
+    {
+        $setting = SiteSetting::where('key', $key)->first();
+        return $setting ? $setting->value : $default;
     }
 }

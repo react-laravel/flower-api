@@ -14,7 +14,6 @@ class KnowledgeSearchService
 {
     private const CACHE_TTL_SECONDS = 300; // 5 minutes
     private const CACHE_KEY_ALL = 'knowledge_all';
-    private const CACHE_KEY_LIST = 'knowledge_list';
 
     private const EXACT_MATCH_SCORE = 100;
     private const CONTAINS_MATCH_SCORE = 80;
@@ -41,9 +40,7 @@ class KnowledgeSearchService
      */
     public function findBestMatch(string $query): ?array
     {
-        $knowledgeItems = Cache::remember(self::CACHE_KEY_ALL, self::CACHE_TTL_SECONDS, function () {
-            return Knowledge::all();
-        });
+        $knowledgeItems = $this->getCachedAll();
 
         $bestMatch = null;
         $highestScore = 0;
@@ -112,8 +109,18 @@ class KnowledgeSearchService
      */
     public function getAllSortedByCategory(): Collection
     {
-        return Cache::remember(self::CACHE_KEY_LIST, self::CACHE_TTL_SECONDS, function () {
-            return Knowledge::orderBy('category')->get();
+        return $this->getCachedAll()->sortBy('category')->values();
+    }
+
+    /**
+     * Load all knowledge items with caching (single DB query shared across methods).
+     *
+     * @return Collection<int, Knowledge>
+     */
+    private function getCachedAll(): Collection
+    {
+        return Cache::remember(self::CACHE_KEY_ALL, self::CACHE_TTL_SECONDS, function () {
+            return Knowledge::all();
         });
     }
 }
