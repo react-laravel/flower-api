@@ -223,7 +223,7 @@ class IdempotencyTest extends TestCase
         $idempotencyKey = 'setting-key-' . uniqid();
 
         // First request - update setting
-        $response1 = $this->putJson('/api/site-settings', [
+        $response1 = $this->putJson('/api/settings', [
             'key' => 'site_name',
             'value' => 'Flower Shop',
         ], ['X-Idempotency-Key' => $idempotencyKey]);
@@ -231,7 +231,7 @@ class IdempotencyTest extends TestCase
         $response1->assertStatus(200);
 
         // Second request with same key - should return cached response
-        $response2 = $this->putJson('/api/site-settings', [
+        $response2 = $this->putJson('/api/settings', [
             'key' => 'site_name',
             'value' => 'Different Name',
         ], ['X-Idempotency-Key' => $idempotencyKey]);
@@ -253,7 +253,7 @@ class IdempotencyTest extends TestCase
         $idempotencyKey = 'batch-setting-key-' . uniqid();
 
         // First request - batch update
-        $response1 = $this->putJson('/api/site-settings/batch', [
+        $response1 = $this->postJson('/api/settings/batch', [
             'settings' => [
                 'site_name' => 'My Flower Shop',
                 'contact_email' => 'test@example.com',
@@ -263,7 +263,7 @@ class IdempotencyTest extends TestCase
         $response1->assertStatus(200);
 
         // Second request with same key - should return cached response
-        $response2 = $this->putJson('/api/site-settings/batch', [
+        $response2 = $this->postJson('/api/settings/batch', [
             'settings' => [
                 'site_name' => 'Different Shop',
                 'contact_email' => 'other@example.com',

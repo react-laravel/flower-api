@@ -8,10 +8,10 @@ use App\Http\Requests\UpdateFlowerRequest;
 use App\Http\Traits\ApiResponse;
 use App\Http\Traits\Idempotency;
 use App\Models\Flower;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class FlowerController extends Controller
 {
@@ -37,7 +37,7 @@ class FlowerController extends Controller
     public function store(StoreFlowerRequest $request): JsonResponse
     {
         return $this->handleIdempotentRequest($request, function () use ($request) {
-            $this->authorize('create', Flower::class);
+            Gate::authorize('create', Flower::class);
 
             return DB::transaction(function () use ($request) {
                 $flower = Flower::create($request->validated());
@@ -50,7 +50,7 @@ class FlowerController extends Controller
     {
         $flower = Flower::findOrFail($id);
 
-        $this->authorize('view', $flower);
+        Gate::authorize('view', $flower);
 
         return $this->success($flower);
     }
@@ -60,7 +60,7 @@ class FlowerController extends Controller
         return $this->handleIdempotentRequest($request, function () use ($request, $id) {
             $flower = Flower::findOrFail($id);
 
-            $this->authorize('update', $flower);
+            Gate::authorize('update', $flower);
 
             return DB::transaction(function () use ($flower, $request) {
                 $flower->update($request->validated());
@@ -69,12 +69,12 @@ class FlowerController extends Controller
         });
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        return $this->handleIdempotentRequest($request, function () use ($id) {
+        return $this->handleIdempotentRequest(request(), function () use ($id) {
             $flower = Flower::findOrFail($id);
 
-            $this->authorize('delete', $flower);
+            Gate::authorize('delete', $flower);
 
             return DB::transaction(function () use ($flower) {
                 $flower->delete();

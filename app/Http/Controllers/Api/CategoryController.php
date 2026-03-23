@@ -9,8 +9,8 @@ use App\Http\Traits\ApiResponse;
 use App\Http\Traits\Idempotency;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class CategoryController extends Controller
 {
@@ -26,7 +26,7 @@ class CategoryController extends Controller
     public function store(StoreCategoryRequest $request): JsonResponse
     {
         return $this->handleIdempotentRequest($request, function () use ($request) {
-            $this->authorize('create', Category::class);
+            Gate::authorize('create', Category::class);
 
             return DB::transaction(function () use ($request) {
                 $category = Category::create($request->validated());
@@ -39,7 +39,7 @@ class CategoryController extends Controller
     {
         $category = Category::findOrFail($id);
 
-        $this->authorize('view', $category);
+        Gate::authorize('view', $category);
 
         return $this->success($category);
     }
@@ -49,7 +49,7 @@ class CategoryController extends Controller
         return $this->handleIdempotentRequest($request, function () use ($request, $id) {
             $category = Category::findOrFail($id);
 
-            $this->authorize('update', $category);
+            Gate::authorize('update', $category);
 
             return DB::transaction(function () use ($category, $request) {
                 $category->update($request->validated());
@@ -58,12 +58,12 @@ class CategoryController extends Controller
         });
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        return $this->handleIdempotentRequest($request, function () use ($id) {
+        return $this->handleIdempotentRequest(request(), function () use ($id) {
             $category = Category::findOrFail($id);
 
-            $this->authorize('delete', $category);
+            Gate::authorize('delete', $category);
 
             return DB::transaction(function () use ($category) {
                 $category->delete();
