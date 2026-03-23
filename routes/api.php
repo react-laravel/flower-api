@@ -18,9 +18,11 @@ Route::apiResource('flowers', FlowerController::class)->only(['index', 'show']);
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 Route::apiResource('knowledge', KnowledgeController::class)->only(['index', 'show']);
 
-// Public chat routes
-Route::post('/chat', [ChatController::class, 'chat']);
-Route::get('/chat/knowledge', [ChatController::class, 'knowledge']);
+// Public chat routes (rate-limited: 30 req/min per IP to prevent abuse)
+Route::middleware('throttle:30,1')->group(function () {
+    Route::post('/chat', [ChatController::class, 'chat']);
+    Route::get('/chat/knowledge', [ChatController::class, 'knowledge']);
+});
 
 // Public settings routes (read-only)
 Route::get('/settings', [SiteSettingController::class, 'index']);
