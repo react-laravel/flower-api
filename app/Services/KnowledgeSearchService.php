@@ -20,6 +20,7 @@ class KnowledgeSearchService
     private const CONTAINS_MATCH_SCORE = 80;
     private const KEYWORD_MATCH_MAX_SCORE = 60;
     private const MIN_SCORE_THRESHOLD = 20;
+    private const WHITESPACE_PATTERN = '/\s+/';
 
     /**
      * Search knowledge base for best matching answer.
@@ -45,11 +46,14 @@ class KnowledgeSearchService
             return Knowledge::all();
         });
 
+        // Pre-process query words once (outside loop) to avoid repeated regex compilation
+        $queryWords = $this->normalizeWords($query);
+
         $bestMatch = null;
         $highestScore = 0;
 
         foreach ($knowledgeItems as $item) {
-            $score = $this->calculateScore($query, $item);
+            $score = $this->calculateScore($query, $item, $queryWords);
 
             if ($score > $highestScore) {
                 $highestScore = $score;
@@ -68,9 +72,20 @@ class KnowledgeSearchService
     }
 
     /**
+     * Normalize words by collapsing whitespace.
+     * Note: $query is assumed to be already trimmed and lowercased.
+     */
+    private function normalizeWords(string $text): array
+    {
+        return array_filter(
+            explode(' ', preg_replace(self::WHITESPACE_PATTERN, ' ', $text))
+        );
+    }
+
+    /**
      * Calculate match score between query and knowledge item.
      */
-    private function calculateScore(string $query, Knowledge $item): int
+    private function calculateScore(string $query, Knowledge $item, array $queryWords): int
     {
         $question = strtolower($item->question);
 
@@ -79,26 +94,27 @@ class KnowledgeSearchService
             return self::EXACT_MATCH_SCORE;
         }
 
-        // Contains match
+        // Contains match: only fires when query is a proper substring
+        // (not just because query chars appear scattered in question)
         if (str_contains($question, $query) || str_contains($query, $question)) {
             return self::CONTAINS_MATCH_SCORE;
         }
 
         // Keyword match
-        return $this->calculateKeywordScore($query, $question);
+        return $this->calculateKeywordScore($queryWords, $question);
     }
 
     /**
      * Calculate score based on keyword matching.
+     * Note: $queryWords is pre-normalized outside the loop.
      */
-    private function calculateKeywordScore(string $query, string $question): int
+    private function calculateKeywordScore(array $queryWords, string $question): int
     {
-        $queryWords = array_filter(explode(' ', preg_replace('/\s+/', ' ', trim($query))));
-        $questionWords = explode(' ', preg_replace('/\s+/', ' ', trim($question)));
-
         if (count($queryWords) === 0) {
             return 0;
         }
+
+        $questionWords = $this->normalizeWords($question);
 
         $matches = array_filter($queryWords, function ($w) use ($questionWords) {
             return count(array_filter($questionWords, fn($qw) => str_contains($qw, $w) || str_contains($w, $qw))) > 0;
