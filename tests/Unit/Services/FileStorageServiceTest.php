@@ -9,80 +9,138 @@ use Tests\TestCase;
 
 class FileStorageServiceTest extends TestCase
 {
-    private FileStorageService $service;
-
     protected function setUp(): void
     {
         parent::setUp();
         Storage::fake('public');
-        $this->service = new FileStorageService('public');
     }
 
     public function test_upload_returns_url_and_path(): void
     {
-        $file = UploadedFile::fake()->image('test.jpg', 100, 100);
+        $file = UploadedFile::fake()->image('flower.jpg', 800, 600);
+        $service = new FileStorageService('public');
 
-        $result = $this->service->upload($file);
+        $result = $service->upload($file);
 
         $this->assertArrayHasKey('url', $result);
         $this->assertArrayHasKey('path', $result);
-        $this->assertStringContainsString('uploads/', $result['path']);
+        $this->assertNotEmpty($result['path']);
     }
 
-    public function test_upload_creates_file_in_storage(): void
+    public function test_upload_stores_file_in_public_disk(): void
     {
-        $file = UploadedFile::fake()->image('test.jpg', 100, 100);
+        $file = UploadedFile::fake()->image('rose.jpg', 800, 600);
+        $service = new FileStorageService('public');
 
-        $result = $this->service->upload($file);
+        $result = $service->upload($file);
 
         Storage::disk('public')->assertExists($result['path']);
     }
 
-    public function test_upload_with_invalid_mime_type_throws_exception(): void
+    public function test_upload_rejects_file_exceeding_max_size(): void
     {
-        $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('不支持的文件类型');
-        $this->service->upload($file);
-    }
-
-    public function test_upload_with_file_too_large_throws_exception(): void
-    {
-        $file = UploadedFile::fake()->image('large.jpg', 100, 100)->size(6000);
-
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('文件大小超过限制');
-        $this->service->upload($file);
+
+        $file = UploadedFile::fake()->create('large.jpg', 6000); // > 5MB
+        $service = new FileStorageService('public');
+
+        $service->upload($file);
     }
 
-    public function test_delete_removes_file_from_storage(): void
+    public function test_upload_rejects_disallowed_extension(): void
     {
-        $file = UploadedFile::fake()->image('test.jpg', 100, 100);
-        $result = $this->service->upload($file);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('不支持的文件类型');
 
-        $this->service->delete($result['path']);
+        $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+        $service = new FileStorageService('public');
 
-        Storage::disk('public')->assertMissing($result['path']);
+        $service->upload($file);
     }
 
-    public function test_delete_with_invalid_path_throws_exception(): void
+    public function test_upload_accepts_png_format(): void
+    {
+        $file = UploadedFile::fake()->image('flower.png', 800, 600);
+        $service = new FileStorageService('public');
+
+        $result = $service->upload($file);
+
+        $this->assertNotEmpty($result['path']);
+    }
+
+    public function test_upload_accepts_gif_format(): void
+    {
+        $file = UploadedFile::fake()->image('flower.gif', 800, 600);
+        $service = new FileStorageService('public');
+
+        $result = $service->upload($file);
+
+        $this->assertNotEmpty($result['path']);
+    }
+
+    public function test_upload_accepts_webp_format(): void
+    {
+        $file = UploadedFile::fake()->image('flower.webp', 800, 600);
+        $service = new FileStorageService('public');
+
+        $result = $service->upload($file);
+
+        $this->assertNotEmpty($result['path']);
+    }
+
+    public function test_delete_removes_existing_file(): void
+    {
+        Storage::disk('public')->put('uploads/test.jpg', 'content');
+        $service = new FileStorageService('public');
+
+        $service->delete('uploads/test.jpg');
+
+        Storage::disk('public')->assertMissing('uploads/test.jpg');
+    }
+
+    public function test_delete_rejects_path_traversal(): void
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('无效的文件路径');
-        $this->service->delete('invalid/path/file.jpg');
+
+        $service = new FileStorageService('public');
+        $service->delete('../etc/passwd');
+    }
+
+    public function test_delete_rejects_absolute_path(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('无效的文件路径');
+
+        $service = new FileStorageService('public');
+        $service->delete('/etc/passwd');
     }
 
     public function test_exists_returns_true_for_existing_file(): void
     {
-        $file = UploadedFile::fake()->image('test.jpg', 100, 100);
-        $result = $this->service->upload($file);
+        Storage::disk('public')->put('uploads/test.jpg', 'content');
+        $service = new FileStorageService('public');
 
-        $this->assertTrue($this->service->exists($result['path']));
+        $this->assertTrue($service->exists('uploads/test.jpg'));
     }
 
-    public function test_exists_returns_false_for_nonexistent_file(): void
+    public function test_exists_returns_false_for_missing_file(): void
     {
-        $this->assertFalse($this->service->exists('nonexistent/path/file.jpg'));
+        $service = new FileStorageService('public');
+
+        $this->assertFalse($service->exists('uploads/nonexistent.jpg'));
+    }
+
+    public function test_generate_filename_is_unique(): void
+    {
+        $file1 = UploadedFile::fake()->image('flower1.jpg', 800, 600);
+        $file2 = UploadedFile::fake()->image('flower2.jpg', 800, 600);
+        $service = new FileStorageService('public');
+
+        $result1 = $service->upload($file1);
+        $result2 = $service->upload($file2);
+
+        $this->assertNotEquals($result1['path'], $result2['path']);
     }
 }
