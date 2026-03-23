@@ -70,13 +70,17 @@ class SiteSettingService
     }
 
     /**
-     * Batch update multiple settings.
+     * Batch update multiple settings using a single bulk upsert.
      */
     public function batchSet(array $settings): void
     {
-        foreach ($settings as $key => $value) {
-            $this->set($key, $value);
+        if (empty($settings)) {
+            return;
         }
+
+        $records = array_map(fn($key, $value) => ['key' => $key, 'value' => $value], array_keys($settings), array_values($settings));
+
+        SiteSetting::upsert($records, ['key'], ['value']);
     }
 
     /**
