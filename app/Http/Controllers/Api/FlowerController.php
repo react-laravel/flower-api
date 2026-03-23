@@ -19,7 +19,10 @@ class FlowerController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $perPage = min((int) $request->get('per_page', 20), 100);
+
         $flowers = Flower::query()
+            ->with('user:id,name') // Fix N+1: eager load user relationship
             ->when($request->filled('category') && $request->category !== 'all',
                 fn($q) => $q->where('category', $request->category))
             ->when($request->filled('featured'),
@@ -29,7 +32,7 @@ class FlowerController extends Controller
                     ->where('name', 'like', "%{$request->search}%")
                     ->orWhere('name_en', 'like', "%{$request->search}%")))
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($perPage);
 
         return $this->success($flowers);
     }
