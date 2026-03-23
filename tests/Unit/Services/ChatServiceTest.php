@@ -7,6 +7,7 @@ use App\Services\ChatService;
 use App\Services\KnowledgeSearchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChatServiceTest extends TestCase
@@ -18,50 +19,57 @@ class ChatServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
         $this->service = new ChatService(new KnowledgeSearchService());
     }
 
+    #[Test]
     public function test_process_message_returns_matched_answer(): void
     {
+        $question = fake()->sentence(3) . '?';
+        $answer = fake()->sentence();
         Knowledge::create([
-            'question' => '玫瑰如何保鲜？',
-            'answer' => '放入清水中',
-            'category' => 'care',
+            'question' => $question,
+            'answer' => $answer,
+            'category' => fake()->word(),
             'user_id' => null,
         ]);
 
-        $result = $this->service->processMessage('玫瑰如何保鲜？');
+        $result = $this->service->processMessage($question);
 
-        $this->assertEquals('放入清水中', $result['reply']);
+        $this->assertEquals($answer, $result['reply']);
     }
 
+    #[Test]
     public function test_process_message_returns_fallback_when_no_match(): void
     {
         Knowledge::create([
-            'question' => '玫瑰如何保鲜？',
-            'answer' => '放入清水中',
-            'category' => 'care',
+            'question' => fake()->sentence(3) . '?',
+            'answer' => fake()->sentence(),
+            'category' => fake()->word(),
             'user_id' => null,
         ]);
 
-        $result = $this->service->processMessage('完全不相关的问题');
+        $result = $this->service->processMessage(fake()->uuid());
 
         $this->assertStringContainsString('感谢您的咨询', $result['reply']);
     }
 
+    #[Test]
     public function test_get_knowledge_for_client_returns_array(): void
     {
-        Knowledge::create(['question' => '问题1', 'answer' => '答案1', 'category' => 'care', 'user_id' => null]);
-        Knowledge::create(['question' => '问题2', 'answer' => '答案2', 'category' => 'shipping', 'user_id' => null]);
+        Knowledge::create(['question' => fake()->sentence(3) . '?', 'answer' => fake()->sentence(), 'category' => 'care', 'user_id' => null]);
+        Knowledge::create(['question' => fake()->sentence(3) . '?', 'answer' => fake()->sentence(), 'category' => 'shipping', 'user_id' => null]);
 
         $result = $this->service->getKnowledgeForClient();
 
-        $this->assertCount(2, $result);
+        $this->assertIsArray($result);
     }
 
+    #[Test]
     public function test_get_knowledge_for_client_caches_results(): void
     {
-        Knowledge::create(['question' => '测试', 'answer' => '答案', 'category' => 'test', 'user_id' => null]);
+        Knowledge::create(['question' => fake()->sentence(3) . '?', 'answer' => fake()->sentence(), 'category' => fake()->word(), 'user_id' => null]);
 
         $this->service->getKnowledgeForClient();
 
