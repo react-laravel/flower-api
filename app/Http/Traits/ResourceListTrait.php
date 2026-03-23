@@ -2,7 +2,6 @@
 
 namespace App\Http\Traits;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -15,13 +14,10 @@ trait ResourceListTrait
      * List all records of a model, ordered by the given column.
      *
      * @param string $modelClass Fully-qualified model class name
-     * @param string $orderBy Column to order by (default: 'category')
+     * @param string $orderBy Column to order by (default: 'id')
      */
-    protected function listAll(string $modelClass, string $orderBy = 'category'): JsonResponse
+    protected function listAll(string $modelClass, string $orderBy = 'id'): JsonResponse
     {
-        /** @var Model $instance */
-        $instance = new $modelClass();
-
         $items = $modelClass::orderBy($orderBy)->get();
 
         return $this->success($items);
