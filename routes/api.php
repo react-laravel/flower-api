@@ -30,11 +30,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::get('/auth/user', [AuthController::class, 'user']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
-    Route::get('/auth/is-admin', [AuthController::class, 'isAdmin']);
 });
 
 // Admin routes - require admin + auth (for CRUD operations)
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    // isAdmin: only admins may check admin status (prevents privilege enumeration via stolen tokens)
+    Route::get('/auth/is-admin', [AuthController::class, 'isAdmin']);
+
     Route::apiResource('flowers', FlowerController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('knowledge', KnowledgeController::class)->only(['store', 'update', 'destroy']);

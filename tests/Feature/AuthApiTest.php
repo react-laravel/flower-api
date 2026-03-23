@@ -160,7 +160,7 @@ class AuthApiTest extends TestCase
         $this->assertTrue($adminResponse->json('data.is_admin'));
     }
 
-    public function test_regular_user_is_not_admin(): void
+    public function test_regular_user_gets_403_on_is_admin_check(): void
     {
         $regularUser = User::factory()->create(['is_admin' => false]);
         $regularToken = $regularUser->createToken('test-token')->plainTextToken;
@@ -169,9 +169,7 @@ class AuthApiTest extends TestCase
             'Authorization' => "Bearer $regularToken",
         ])->getJson('/api/auth/is-admin');
 
-        $regularResponse->assertStatus(200)
-            ->assertJson(['success' => true]);
-
-        $this->assertFalse($regularResponse->json('data.is_admin'));
+        // Only admins may check admin status — non-admins get 403
+        $regularResponse->assertForbidden();
     }
 }

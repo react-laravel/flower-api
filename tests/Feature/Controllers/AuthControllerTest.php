@@ -160,7 +160,7 @@ class AuthControllerTest extends TestCase
             'password' => Hash::make('password123'),
         ]);
 
-        $response = $this->actingAs($user)
+        $response = $this->actingAs($user, 'sanctum')
             ->getJson('/api/user');
 
         $response->assertStatus(200)
@@ -191,7 +191,7 @@ class AuthControllerTest extends TestCase
             'password' => Hash::make('password123'),
         ]);
 
-        $response = $this->actingAs($user)
+        $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/logout');
 
         $response->assertStatus(200)
@@ -213,8 +213,8 @@ class AuthControllerTest extends TestCase
             'is_admin' => true,
         ]);
 
-        $response = $this->actingAs($user)
-            ->getJson('/api/is-admin');
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/auth/is-admin');
 
         $response->assertStatus(200)
             ->assertJson([
@@ -226,7 +226,7 @@ class AuthControllerTest extends TestCase
     /**
      * @test
      */
-    public function it_returns_is_admin_false_for_regular_user(): void
+    public function it_returns_403_for_regular_user_on_is_admin_endpoint(): void
     {
         $user = User::create([
             'name' => 'Regular User',
@@ -235,13 +235,10 @@ class AuthControllerTest extends TestCase
             'is_admin' => false,
         ]);
 
-        $response = $this->actingAs($user)
-            ->getJson('/api/is-admin');
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/auth/is-admin');
 
-        $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'data' => ['is_admin' => false],
-            ]);
+        // Only admins may check admin status — non-admins get 403 (prevents privilege enumeration)
+        $response->assertForbidden();
     }
 }

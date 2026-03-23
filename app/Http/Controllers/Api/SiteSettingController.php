@@ -15,9 +15,20 @@ class SiteSettingController extends Controller
     use ApiResponse, Idempotency;
 
     /**
+     * Expanded sensitive key patterns for public settings endpoint.
+     * Covers: SMTP, AWS, payment providers, messaging services, API keys, etc.
+     */
+    private const SENSITIVE_PATTERNS = [
+        'smtp_', 'aws_', 'password', 'secret', 'token', 'credential',
+        'sendgrid_', 'mailgun_', 'twilio_', 'stripe_', 'slack_',
+        'github_', 'openai_', 'mailchimp_', 'fb_|facebook_', 'google_',
+        'jwt_', 'private_', 'encryption_', 'paypal_',
+    ];
+
+    /**
      * Get all settings or a specific setting
      * Note: only returns non-sensitive public settings via the bulk endpoint.
-     * Sensitive keys (password, secret, key, token) require admin auth.
+     * Sensitive keys require admin auth.
      */
     public function index(Request $request): JsonResponse
     {
@@ -25,8 +36,7 @@ class SiteSettingController extends Controller
 
         if ($key) {
             // Check if the requested key matches sensitive patterns
-            $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
-            if (preg_match('/(' . implode('|', $sensitivePatterns) . ')/i', $key)) {
+            if (preg_match('/(' . implode('|', self::SENSITIVE_PATTERNS) . ')/i', $key)) {
                 return $this->error('无效的设置键', 400);
             }
 
@@ -35,10 +45,9 @@ class SiteSettingController extends Controller
         }
 
         // Filter out potentially sensitive keys from public response
-        $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
         $settings = SiteSetting::all()->pluck('value', 'key')
             ->filter(fn($value, $settingKey) => !preg_match(
-                '/(' . implode('|', $sensitivePatterns) . ')/i',
+                '/(' . implode('|', self::SENSITIVE_PATTERNS) . ')/i',
                 $settingKey
             ));
 
