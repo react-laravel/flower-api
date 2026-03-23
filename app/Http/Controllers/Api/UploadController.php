@@ -4,14 +4,21 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
+use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 
 class UploadController extends Controller
 {
     use ApiResponse;
+
+    private FileStorageService $fileStorage;
+
+    public function __construct(FileStorageService $fileStorage)
+    {
+        $this->fileStorage = $fileStorage;
+    }
 
     public function upload(Request $request): JsonResponse
     {
@@ -25,19 +32,12 @@ class UploadController extends Controller
 
         $file = $request->file('image');
 
-        // Generate unique filename
-        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
-        // Store in public/uploads directory
-        $path = $file->storeAs('uploads', $filename, 'public');
-
-        // Return the URL
-        $url = Storage::url($path);
-
-        return $this->success([
-            'url' => $url,
-            'path' => $path,
-        ]);
+        try {
+            $result = $this->fileStorage->upload($file);
+            return $this->success($result);
+        } catch (\InvalidArgumentException $e) {
+            return $this->error($e->getMessage(), 400);
+        }
     }
 
     public function delete(Request $request): JsonResponse
@@ -52,19 +52,21 @@ class UploadController extends Controller
 
         $rawPath = urldecode($request->path);
 
-        // Must start with uploads/ and contain no path traversal sequences
         if (!str_starts_with($rawPath, 'uploads/')
             || str_contains($rawPath, '..')
             || str_contains($rawPath, '~')) {
             return $this->error('无效的文件路径', 400);
         }
 
-        // Verify file exists before attempting delete to give meaningful feedback
-        if (!Storage::disk('public')->exists($rawPath)) {
+        if (!$this->fileStorage->exists($rawPath)) {
             return $this->error('文件不存在', 404);
         }
 
-        Storage::disk('public')->delete($rawPath);
+        try {
+            $this->fileStorage->delete($rawPath);
+        } catch (\InvalidArgumentException $e) {
+            return $this->error($e->getMessage(), 400);
+        }
 
         return $this->success(null, '删除成功');
     }
