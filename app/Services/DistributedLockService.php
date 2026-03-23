@@ -2,25 +2,18 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Cache;
+use App\Services\Traits\CacheLocking;
 use Illuminate\Support\Facades\Log;
 
 class DistributedLockService
 {
+    use CacheLocking;
+
     private const DEFAULT_LOCK_TTL = 30; // seconds
-    private string $cacheStore;
 
     public function __construct(string $cacheStore = null)
     {
-        $this->cacheStore = $cacheStore ?? config('cache.default');
-    }
-
-    /**
-     * Get the cache store instance
-     */
-    protected function cache(): \Illuminate\Contracts\Cache\Repository
-    {
-        return Cache::store($this->cacheStore);
+        $this->initCacheStore($cacheStore);
     }
 
     /**
@@ -103,14 +96,6 @@ class DistributedLockService
     }
 
     /**
-     * Check if a lock is currently held
-     */
-    public function isLocked(string $key): bool
-    {
-        return $this->cache()->has($this->getLockKey($key));
-    }
-
-    /**
      * Get lock information
      */
     public function getLockInfo(string $key): ?array
@@ -130,7 +115,7 @@ class DistributedLockService
     /**
      * Generate the lock cache key
      */
-    private function getLockKey(string $key): string
+    protected function getLockKey(string $key): string
     {
         return 'distributed_lock:' . $key;
     }
