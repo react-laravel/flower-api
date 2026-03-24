@@ -33,7 +33,7 @@ class FlowerController extends Controller
             });
         }
 
-        $flowers = $query->orderBy('created_at', 'desc')->get();
+        $flowers = $query->orderBy('created_at', 'desc')->paginate(20);
 
         return $this->success($flowers);
     }
