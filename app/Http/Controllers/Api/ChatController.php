@@ -22,7 +22,7 @@ class ChatController extends Controller
         $bestMatch = null;
         $highestScore = 0;
 
-        $knowledgeItems = Knowledge::all();
+        $knowledgeItems = Knowledge::limit(100)->get();
 
         foreach ($knowledgeItems as $item) {
             $question = strtolower($item->question);
