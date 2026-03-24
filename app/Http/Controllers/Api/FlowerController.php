@@ -18,6 +18,10 @@ class FlowerController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'search' => 'nullable|string|max:100',
+        ]);
+
         $perPage = min((int) $request->get('per_page', 20), 100);
 
         $flowers = Flower::query()
