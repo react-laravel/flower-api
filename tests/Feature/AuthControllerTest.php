@@ -177,7 +177,7 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
-    public function test_is_admin_returns_false_for_regular_user(): void
+    public function test_is_admin_returns_403_for_non_admin_user(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
         $token = $user->createToken('test')->plainTextToken;
@@ -185,8 +185,8 @@ class AuthControllerTest extends TestCase
         $response = $this->withHeader('Authorization', "Bearer $token")
             ->getJson('/api/auth/is-admin');
 
-        $response->assertOk()
-            ->assertJson(['data' => ['is_admin' => false]]);
+        // Only admins may check admin status — non-admins get 403 (prevents privilege enumeration)
+        $response->assertForbidden();
     }
 
     public function test_is_admin_returns_true_for_admin_user(): void

@@ -145,4 +145,51 @@ class SiteSettingControllerTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['settings']);
     }
+
+    /**
+     * @dataProvider sensitiveKeyPatternsProvider
+     */
+    public function test_index_rejects_expanded_sensitive_key_patterns_in_query(string $sensitiveKey): void
+    {
+        SiteSetting::create(['key' => $sensitiveKey, 'value' => 'sensitive-value']);
+
+        $response = $this->getJson("/api/settings?key={$sensitiveKey}");
+
+        $response->assertStatus(400)
+            ->assertJson(['success' => false, 'message' => '无效的设置键']);
+    }
+
+    /**
+     * @dataProvider sensitiveKeyPatternsProvider
+     */
+    public function test_index_excludes_expanded_sensitive_patterns_from_bulk_response(string $sensitiveKey): void
+    {
+        SiteSetting::create(['key' => $sensitiveKey, 'value' => 'sensitive-value']);
+        SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Shop']);
+
+        $response = $this->getJson('/api/settings');
+
+        $response->assertOk();
+        $this->assertArrayNotHasKey($sensitiveKey, $response->json('data'));
+        $this->assertEquals('Flower Shop', $response->json('data.site_name'));
+    }
+
+    public static function sensitiveKeyPatternsProvider(): array
+    {
+        return [
+            'stripe_api_key' => ['stripe_api_key'],
+            'sendgrid_api_key' => ['sendgrid_api_key'],
+            'twilio_auth_token' => ['twilio_auth_token'],
+            'mailchimp_api_key' => ['mailchimp_api_key'],
+            'github_token' => ['github_token'],
+            'openai_api_key' => ['openai_api_key'],
+            'slack_webhook_url' => ['slack_webhook_url'],
+            'google_recaptcha_secret' => ['google_recaptcha_secret'],
+            'jwt_secret' => ['jwt_secret'],
+            'private_key' => ['private_key'],
+            'encryption_key' => ['encryption_key'],
+            'paypal_client_secret' => ['paypal_client_secret'],
+            'facebook_access_token' => ['facebook_access_token'],
+        ];
+    }
 }
