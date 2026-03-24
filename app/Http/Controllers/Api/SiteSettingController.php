@@ -32,7 +32,7 @@ class SiteSettingController extends Controller
     /**
      * Get all settings or a specific setting
      * Note: only returns non-sensitive public settings via the bulk endpoint.
-     * Sensitive keys (password, secret, key, token) require admin auth.
+     * Sensitive keys require admin auth.
      */
     public function index(Request $request): JsonResponse
     {
