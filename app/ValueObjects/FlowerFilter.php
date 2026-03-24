@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
  */
 class FlowerFilter
 {
+    public const DEFAULT_PER_PAGE = 20;
+    public const MAX_PER_PAGE = 100;
+
     public readonly ?string $category;
     public readonly ?bool $featured;
     public readonly ?string $search;
@@ -34,7 +37,10 @@ class FlowerFilter
             ? $request->input('featured') === 'true'
             : null;
         $search = $request->input('search');
-        $perPage = min((int) $request->get('per_page', 20), 100);
+        $perPage = min(
+            (int) $request->get('per_page', self::DEFAULT_PER_PAGE),
+            self::MAX_PER_PAGE
+        );
 
         // Normalize 'all' category to null
         if ($category === 'all') {

@@ -12,6 +12,9 @@ use Illuminate\Http\Request;
  */
 trait PaginatedIndex
 {
+    public const DEFAULT_PER_PAGE = 20;
+    public const MAX_PER_PAGE = 100;
+
     /**
      * Apply filters from the request to the query.
      * Override in controllers that need specific filters.
@@ -28,7 +31,10 @@ trait PaginatedIndex
      */
     protected function paginatedIndex(Builder $query, Request $request): JsonResponse
     {
-        $perPage = min((int) $request->get('per_page', 20), 100);
+        $perPage = min(
+            (int) $request->get('per_page', self::DEFAULT_PER_PAGE),
+            self::MAX_PER_PAGE
+        );
 
         $query = $this->applyFilters($query, $request);
 
