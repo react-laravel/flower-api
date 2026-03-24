@@ -14,10 +14,6 @@ class SiteSettingController extends Controller
 {
     use ApiResponse, Idempotency;
 
-    /**
-     * Patterns used to detect sensitive setting keys that should not be
-     * exposed via the public API.
-     */
     private const SENSITIVE_PATTERNS = [
         'smtp_', 'aws_', 'password', 'secret', 'token', 'credential',
         'sendgrid_', 'mailgun_', 'twilio_', 'stripe_', 'slack_',
