@@ -9,6 +9,7 @@ use App\Models\SiteSetting;
 use App\Services\SiteSettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SiteSettingController extends Controller
 {
@@ -72,16 +73,10 @@ class SiteSettingController extends Controller
                 'value' => 'nullable|string',
             ]);
 
-<<<<<<< HEAD
-            $this->siteSettingService->set($request->key, $request->value);
-
-            return $this->success(null, '设置已更新');
-=======
             return DB::transaction(function () use ($request) {
                 $this->siteSettingService->set($request->key, $request->value);
                 return $this->success(null, '设置已更新');
             });
->>>>>>> origin/ai-05b-interface-reliability-round2
         });
     }
 
@@ -97,16 +92,10 @@ class SiteSettingController extends Controller
                 'settings' => 'required|array',
             ]);
 
-<<<<<<< HEAD
-            $this->siteSettingService->batchSet($settings['settings']);
-
-            return $this->success(null, '设置已批量更新');
-=======
             return DB::transaction(function () use ($settings) {
                 $this->siteSettingService->batchSet($settings['settings']);
                 return $this->success(null, '设置已批量更新');
             });
->>>>>>> origin/ai-05b-interface-reliability-round2
         });
     }
 }

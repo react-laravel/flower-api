@@ -58,12 +58,21 @@ class SiteSettingService
 
     /**
      * Batch update multiple settings.
+     * Uses upsert for O(1) database queries instead of N individual updates.
      */
     public function batchSet(array $settings): void
     {
-        foreach ($settings as $key => $value) {
-            $this->set($key, $value);
-        }
+        $records = array_map(
+            fn($key, $value) => ['key' => $key, 'value' => $value],
+            array_keys($settings),
+            $settings
+        );
+
+        SiteSetting::upsert(
+            $records,
+            ['key'],           // unique keys
+            ['value']          // columns to update on conflict
+        );
     }
 
     /**

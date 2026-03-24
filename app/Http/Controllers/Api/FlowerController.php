@@ -17,9 +17,12 @@ class FlowerController extends Controller
 {
     use ApiResponse, Idempotency;
 
+    private const DEFAULT_PER_PAGE = 20;
+    private const MAX_PER_PAGE = 100;
+
     public function index(Request $request): JsonResponse
     {
-        $perPage = min((int) $request->get('per_page', 20), 100);
+        $perPage = min((int) $request->get('per_page', self::DEFAULT_PER_PAGE), self::MAX_PER_PAGE);
 
         $flowers = Flower::query()
             ->with('user:id,name') // Fix N+1: eager load user relationship
