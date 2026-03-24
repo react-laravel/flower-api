@@ -18,25 +18,29 @@ class UploadPolicyTest extends TestCase
 
     public function test_create_returns_true_for_admin_user(): void
     {
-        $admin = new User(['is_admin' => true]);
+        $admin = new User();
+        $admin->is_admin = true;
         $this->assertTrue($this->policy->create($admin));
     }
 
     public function test_create_returns_false_for_non_admin_user(): void
     {
-        $user = new User(['is_admin' => false]);
+        $user = new User();
+        $user->is_admin = false;
         $this->assertFalse($this->policy->create($user));
     }
 
     public function test_delete_returns_true_for_admin_user(): void
     {
-        $admin = new User(['is_admin' => true]);
+        $admin = new User();
+        $admin->is_admin = true;
         $this->assertTrue($this->policy->delete($admin));
     }
 
     public function test_delete_returns_false_for_non_admin_user(): void
     {
-        $user = new User(['is_admin' => false]);
+        $user = new User();
+        $user->is_admin = false;
         $this->assertFalse($this->policy->delete($user));
     }
 }
