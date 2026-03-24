@@ -6,6 +6,7 @@ use App\Models\Knowledge;
 use App\Services\KnowledgeSearchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Mockery;
 use Tests\TestCase;
 
 class KnowledgeSearchServiceTest extends TestCase
@@ -121,5 +122,41 @@ class KnowledgeSearchServiceTest extends TestCase
         $this->service->search('玫瑰？');
 
         $this->assertTrue(Cache::has('knowledge_all'));
+    }
+
+    public function test_search_falls_back_to_db_when_cache_fails(): void
+    {
+        Knowledge::create([
+            'question' => '玫瑰如何保鲜？',
+            'answer' => '放入清水中',
+            'category' => 'care',
+            'user_id' => null,
+        ]);
+
+        // Simulate cache throwing an exception (Redis unavailable)
+        Cache::shouldReceive('remember')
+            ->once()
+            ->andThrow(new \RuntimeException('Redis connection refused'));
+
+        $result = $this->service->search('玫瑰如何保鲜？');
+
+        // Should still return correct result from DB fallback
+        $this->assertEquals('放入清水中', $result);
+    }
+
+    public function test_get_all_sorted_by_category_falls_back_to_db_when_cache_fails(): void
+    {
+        Knowledge::create(['question' => '玫瑰？', 'answer' => '答案', 'category' => 'care', 'user_id' => null]);
+
+        // Simulate cache throwing an exception
+        Cache::shouldReceive('remember')
+            ->once()
+            ->andThrow(new \RuntimeException('Redis connection refused'));
+
+        $result = $this->service->getAllSortedByCategory();
+
+        // Should still return correct result from DB fallback
+        $this->assertCount(1, $result);
+        $this->assertEquals('玫瑰？', $result->first()->question);
     }
 }

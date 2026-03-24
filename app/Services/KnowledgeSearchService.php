@@ -5,16 +5,20 @@ namespace App\Services;
 use App\Models\Knowledge;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Knowledge base search service.
  * Extracted from ChatController to fix God Object violation.
+ * Reliability: query timeout, cache graceful degradation.
  */
 class KnowledgeSearchService
 {
     private const CACHE_TTL_SECONDS = 300; // 5 minutes
     private const CACHE_KEY_ALL = 'knowledge_all';
     private const CACHE_KEY_LIST = 'knowledge_list';
+    private const QUERY_TIMEOUT_SECONDS = 5; // Max seconds for DB query
 
     private const EXACT_MATCH_SCORE = 100;
     private const CONTAINS_MATCH_SCORE = 80;
@@ -38,12 +42,12 @@ class KnowledgeSearchService
 
     /**
      * Find the best matching knowledge item.
+     * Uses cache with graceful degradation: falls back to DB on cache failure.
+     * DB query is bounded by QUERY_TIMEOUT_SECONDS.
      */
     public function findBestMatch(string $query): ?array
     {
-        $knowledgeItems = Cache::remember(self::CACHE_KEY_ALL, self::CACHE_TTL_SECONDS, function () {
-            return Knowledge::all();
-        });
+        $knowledgeItems = $this->getAllKnowledgeItems();
 
         $bestMatch = null;
         $highestScore = 0;
@@ -65,6 +69,34 @@ class KnowledgeSearchService
             'item' => $bestMatch,
             'score' => $highestScore,
         ];
+    }
+
+    /**
+     * Get all knowledge items with cache fallback to DB.
+     * Cache failure is tolerated — falls back to direct DB query.
+     */
+    private function getAllKnowledgeItems(): Collection
+    {
+        try {
+            return Cache::remember(self::CACHE_KEY_ALL, self::CACHE_TTL_SECONDS, function () {
+                return $this->queryKnowledgeWithTimeout();
+            });
+        } catch (Throwable $e) {
+            // Cache (Redis) unavailable — query DB directly with timeout
+            return $this->queryKnowledgeWithTimeout();
+        }
+    }
+
+    /**
+     * Query Knowledge table with a connection timeout.
+     * Prevents indefinite hanging on slow/unresponsive DB.
+     */
+    private function queryKnowledgeWithTimeout(): Collection
+    {
+        $pdo = DB::connection()->getPdo();
+        $pdo->setAttribute(\PDO::ATTR_TIMEOUT, self::QUERY_TIMEOUT_SECONDS);
+
+        return Knowledge::query()->get();
     }
 
     /**
@@ -109,11 +141,16 @@ class KnowledgeSearchService
 
     /**
      * Get all knowledge items sorted by category.
+     * Graceful degradation: falls back to DB if cache fails.
      */
     public function getAllSortedByCategory(): Collection
     {
-        return Cache::remember(self::CACHE_KEY_LIST, self::CACHE_TTL_SECONDS, function () {
+        try {
+            return Cache::remember(self::CACHE_KEY_LIST, self::CACHE_TTL_SECONDS, function () {
+                return Knowledge::orderBy('category')->get();
+            });
+        } catch (Throwable $e) {
             return Knowledge::orderBy('category')->get();
-        });
+        }
     }
 }
