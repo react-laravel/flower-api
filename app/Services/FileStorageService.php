@@ -89,12 +89,17 @@ class FileStorageService
 
     /**
      * Validate the file path for security.
+     * Checks for proper directory prefix and path traversal attacks.
      *
      * @throws \InvalidArgumentException
      */
-    private function validatePath(string $path): void
+    public function validatePath(string $path): void
     {
         if (!str_starts_with($path, self::UPLOAD_DIRECTORY . '/')) {
+            throw new \InvalidArgumentException('无效的文件路径');
+        }
+
+        if (str_contains($path, '..') || str_contains($path, '~')) {
             throw new \InvalidArgumentException('无效的文件路径');
         }
     }

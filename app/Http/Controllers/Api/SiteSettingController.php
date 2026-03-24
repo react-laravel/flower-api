@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
 use App\Http\Traits\Idempotency;
 use App\Models\SiteSetting;
+use App\Services\SensitiveKeyValidator;
 use App\Services\SiteSettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,19 +15,10 @@ class SiteSettingController extends Controller
 {
     use ApiResponse, Idempotency;
 
-    /**
-     * Patterns used to detect sensitive setting keys that should not be
-     * exposed via the public API.
-     */
-    private const SENSITIVE_PATTERNS = [
-        'smtp_', 'aws_', 'password', 'secret', 'token', 'credential',
-        'sendgrid_', 'mailgun_', 'twilio_', 'stripe_', 'slack_',
-        'github_', 'openai_', 'mailchimp_', 'fb_|facebook_', 'google_',
-        'jwt_', 'private_', 'encryption_', 'paypal_',
-    ];
-
-    public function __construct(private SiteSettingService $siteSettingService)
-    {
+    public function __construct(
+        private SiteSettingService $siteSettingService,
+        private SensitiveKeyValidator $sensitiveKeyValidator
+    ) {
     }
 
     /**
@@ -39,7 +31,7 @@ class SiteSettingController extends Controller
         $key = $request->query('key');
 
         if ($key) {
-            if ($this->keyMatchesSensitivePattern($key)) {
+            if ($this->sensitiveKeyValidator->isSensitive($key)) {
                 return $this->error('无效的设置键', 400);
             }
 
@@ -49,17 +41,9 @@ class SiteSettingController extends Controller
 
         // Filter out potentially sensitive keys from public response
         $settings = $this->siteSettingService->all()
-            ->filter(fn($value, $settingKey) => !$this->keyMatchesSensitivePattern($settingKey));
+            ->filter(fn($value, $settingKey) => !$this->sensitiveKeyValidator->isSensitive($settingKey));
 
         return $this->success($settings);
-    }
-
-    private function keyMatchesSensitivePattern(string $key): bool
-    {
-        return (bool) preg_match(
-            '/(' . implode('|', self::SENSITIVE_PATTERNS) . ')/i',
-            $key
-        );
     }
 
     /**

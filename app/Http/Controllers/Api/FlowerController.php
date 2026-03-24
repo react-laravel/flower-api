@@ -9,6 +9,7 @@ use App\Http\Traits\ApiResponse;
 use App\Http\Traits\CrudOperations;
 use App\Http\Traits\Idempotency;
 use App\Models\Flower;
+use App\ValueObjects\FlowerFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,20 +23,15 @@ class FlowerController extends Controller
             'search' => 'nullable|string|max:100',
         ]);
 
-        $perPage = min((int) $request->get('per_page', 20), 100);
+        $filter = FlowerFilter::fromRequest($request);
 
         $flowers = Flower::query()
             ->with('user:id,name') // Fix N+1: eager load user relationship
-            ->when($request->filled('category') && $request->category !== 'all',
-                fn($q) => $q->where('category', $request->category))
-            ->when($request->filled('featured'),
-                fn($q) => $q->where('featured', $request->featured === 'true'))
-            ->when($request->filled('search'),
-                fn($q) => $q->where(fn($q) => $q
-                    ->where('name', 'like', "%{$request->search}%")
-                    ->orWhere('name_en', 'like', "%{$request->search}%")))
             ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            ->paginate($filter->perPage);
+
+        // Apply filters using FlowerFilter value object (avoids DRY violation)
+        $filter->apply($flowers->query());
 
         return $this->success($flowers);
     }
