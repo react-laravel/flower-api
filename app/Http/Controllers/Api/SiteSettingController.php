@@ -14,33 +14,30 @@ class SiteSettingController extends Controller
 {
     use ApiResponse, Idempotency;
 
+    /** @var array<string> Patterns matching sensitive setting keys */
+    private const SENSITIVE_KEY_PATTERNS = [
+        'smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth',
+    ];
+
     /**
-     * Get all settings or a specific setting
-     * Note: only returns non-sensitive public settings via the bulk endpoint.
-     * Sensitive keys (password, secret, key, token) require admin auth.
+     * Get all settings, or a single setting by ?key= query param.
+     * Sensitive keys are always filtered out.
      */
     public function index(Request $request): JsonResponse
     {
         $key = $request->query('key');
 
         if ($key) {
-            // Check if the requested key matches sensitive patterns
-            $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
-            if (preg_match('/(' . implode('|', $sensitivePatterns) . ')/i', $key)) {
+            if (self::matchesSensitivePattern($key)) {
                 return $this->error('无效的设置键', 400);
             }
-
             $value = SiteSetting::getValue($key);
             return $this->success($value);
         }
 
-        // Filter out potentially sensitive keys from public response
-        $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
+        // Bulk listing — filter out sensitive keys
         $settings = SiteSetting::all()->pluck('value', 'key')
-            ->filter(fn($value, $settingKey) => !preg_match(
-                '/(' . implode('|', $sensitivePatterns) . ')/i',
-                $settingKey
-            ));
+            ->filter(fn($value, $settingKey) => !self::matchesSensitivePattern($settingKey));
 
         return $this->success($settings);
     }
@@ -84,5 +81,16 @@ class SiteSettingController extends Controller
                 return $this->success(null, '设置已批量更新');
             });
         });
+    }
+
+    /**
+     * Check if a setting key matches sensitive patterns.
+     */
+    private static function matchesSensitivePattern(string $key): bool
+    {
+        return (bool) preg_match(
+            '/(' . implode('|', self::SENSITIVE_KEY_PATTERNS) . ')/i',
+            $key
+        );
     }
 }
