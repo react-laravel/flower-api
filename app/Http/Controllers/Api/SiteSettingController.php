@@ -15,6 +15,12 @@ class SiteSettingController extends Controller
     use ApiResponse, Idempotency;
 
     /**
+     * Pre-compiled regex for sensitive key detection (case-insensitive).
+     * Extracted from inline array + preg_match calls to fix regex-rebuilt-on-every-call smell.
+     */
+    private const SENSITIVE_REGEX = '/(smtp_|aws_|password|secret|key|token|credential|auth)/i';
+
+    /**
      * Get all settings or a specific setting
      * Note: only returns non-sensitive public settings via the bulk endpoint.
      * Sensitive keys (password, secret, key, token) require admin auth.
@@ -24,9 +30,7 @@ class SiteSettingController extends Controller
         $key = $request->query('key');
 
         if ($key) {
-            // Check if the requested key matches sensitive patterns
-            $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
-            if (preg_match('/(' . implode('|', $sensitivePatterns) . ')/i', $key)) {
+            if (preg_match(self::SENSITIVE_REGEX, $key)) {
                 return $this->error('无效的设置键', 400);
             }
 
@@ -34,11 +38,9 @@ class SiteSettingController extends Controller
             return $this->success($value);
         }
 
-        // Filter out potentially sensitive keys from public response
-        $sensitivePatterns = ['smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth'];
         $settings = SiteSetting::all()->pluck('value', 'key')
             ->filter(fn($value, $settingKey) => !preg_match(
-                '/(' . implode('|', $sensitivePatterns) . ')/i',
+                self::SENSITIVE_REGEX,
                 $settingKey
             ));
 
