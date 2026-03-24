@@ -3,8 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Traits\ApiResponse;
-use PHPUnit\Framework\TestCase;
-use ReflectionClass;
+use Tests\TestCase;
 
 class ApiResponseTraitTest extends TestCase
 {
@@ -15,7 +14,7 @@ class ApiResponseTraitTest extends TestCase
         parent::setUp();
         // Create a concrete class that uses the trait for testing
         $this->traitObject = new class {
-            use ApiResponse;
+            use \App\Http\Traits\ApiResponse;
             public function exposeSuccess(mixed $data = null, ?string $message = null, int $statusCode = 200)
             {
                 return $this->success($data, $message, $statusCode);

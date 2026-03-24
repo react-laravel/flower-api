@@ -4,12 +4,13 @@ namespace Tests\Unit\Traits;
 
 use App\Http\Traits\ResourceListTrait;
 use App\Models\Category;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\JsonResponse;
 use Tests\TestCase;
 
 class ResourceListTraitTest extends TestCase
 {
-    use ResourceListTrait;
+    use RefreshDatabase, ResourceListTrait;
 
     /**
      * Test listAll returns correct structure
