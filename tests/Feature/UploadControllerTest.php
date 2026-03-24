@@ -21,7 +21,7 @@ class UploadControllerTest extends TestCase
 
     public function test_upload_accepts_valid_image(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         $file = UploadedFile::fake()->image('flower.jpg', 800, 600);
@@ -35,7 +35,7 @@ class UploadControllerTest extends TestCase
 
     public function test_upload_accepts_various_image_types(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         foreach (['jpeg', 'png', 'jpg', 'gif', 'webp'] as $ext) {
@@ -47,7 +47,7 @@ class UploadControllerTest extends TestCase
 
     public function test_upload_rejects_non_image_file(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
@@ -60,7 +60,7 @@ class UploadControllerTest extends TestCase
 
     public function test_upload_rejects_files_larger_than_5mb(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         $file = UploadedFile::fake()->create('large-image.jpg', 6000, 'image/jpeg');
@@ -73,7 +73,7 @@ class UploadControllerTest extends TestCase
 
     public function test_upload_requires_image_field(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/upload', []);
@@ -93,7 +93,7 @@ class UploadControllerTest extends TestCase
 
     public function test_delete_removes_file(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         // First upload a file to populate storage
@@ -108,7 +108,7 @@ class UploadControllerTest extends TestCase
 
     public function test_delete_rejects_invalid_path(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         $response = $this->deleteJson('/api/upload', ['path' => '../../../etc/passwd']);
@@ -119,7 +119,7 @@ class UploadControllerTest extends TestCase
 
     public function test_delete_requires_path_field(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         Sanctum::actingAs($user);
 
         $response = $this->deleteJson('/api/upload', []);

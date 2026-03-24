@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
+use App\Http\Traits\Idempotency;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 
 class UploadController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, Idempotency;
 
     public function upload(Request $request): JsonResponse
     {
@@ -23,21 +24,27 @@ class UploadController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
-        $file = $request->file('image');
+        return $this->handleIdempotentRequest($request, function () use ($request) {
+            $file = $request->file('image');
 
-        // Generate unique filename
-        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            // Generate unique filename
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
 
-        // Store in public/uploads directory
-        $path = $file->storeAs('uploads', $filename, 'public');
+            // Store in public/uploads directory
+            $path = $file->storeAs('uploads', $filename, 'public');
 
-        // Return the URL
-        $url = Storage::url($path);
+            // Return the URL
+            $url = Storage::url($path);
 
-        return $this->success([
-            'url' => $url,
-            'path' => $path,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'url' => $url,
+                    'path' => $path,
+                ],
+                'message' => '文件上传成功',
+            ], 200);
+        });
     }
 
     public function delete(Request $request): JsonResponse
