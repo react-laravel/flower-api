@@ -49,7 +49,7 @@ class SiteSettingController extends Controller
     public function batchUpdate(Request $request): JsonResponse
     {
         $settings = $request->validate([
-            'settings' => 'required|array',
+            'settings' => 'required|array|max:50',
         ]);
 
         foreach ($settings['settings'] as $key => $value) {
