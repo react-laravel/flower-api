@@ -4,13 +4,14 @@ namespace Tests\Unit\Traits;
 
 use App\Http\Traits\ResourceController;
 use App\Models\Flower;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class ResourceControllerTest extends TestCase
 {
-    use ResourceController;
+    use RefreshDatabase, ResourceController;
 
     protected static function getModelClass(): string
     {

@@ -6,13 +6,14 @@ use App\Http\Traits\PaginatedIndex;
 use App\Models\Flower;
 use App\ValueObjects\FlowerFilter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class PaginatedIndexTest extends TestCase
 {
-    use PaginatedIndex;
+    use RefreshDatabase, PaginatedIndex;
 
     /**
      * Test applyFilters returns query unchanged by default
@@ -93,7 +94,8 @@ class PaginatedIndexTest extends TestCase
      */
     public function test_paginated_index_with_filter_returns_correct_structure(): void
     {
-        $filter = new FlowerFilter([]);
+        $request = Request::create('/flowers', 'GET', []);
+        $filter = FlowerFilter::fromRequest($request);
 
         $response = $this->paginatedIndexWithFilter(Flower::query(), $filter);
 
@@ -115,7 +117,8 @@ class PaginatedIndexTest extends TestCase
      */
     public function test_paginated_index_with_filter_uses_filter_per_page(): void
     {
-        $filter = new FlowerFilter(['per_page' => 15]);
+        $request = Request::create('/flowers', 'GET', ['per_page' => 15]);
+        $filter = FlowerFilter::fromRequest($request);
 
         $response = $this->paginatedIndexWithFilter(Flower::query(), $filter);
 
