@@ -19,7 +19,10 @@ class SiteSettingController extends Controller
      * exposed via the public API.
      */
     private const SENSITIVE_PATTERNS = [
-        'smtp_', 'aws_', 'password', 'secret', 'key', 'token', 'credential', 'auth',
+        'smtp_', 'aws_', 'password', 'secret', 'token', 'credential',
+        'sendgrid_', 'mailgun_', 'twilio_', 'stripe_', 'slack_',
+        'github_', 'openai_', 'mailchimp_', 'fb_|facebook_', 'google_',
+        'jwt_', 'private_', 'encryption_', 'paypal_',
     ];
 
     public function __construct(private SiteSettingService $siteSettingService)
@@ -72,16 +75,9 @@ class SiteSettingController extends Controller
                 'value' => 'nullable|string',
             ]);
 
-<<<<<<< HEAD
             $this->siteSettingService->set($request->key, $request->value);
 
             return $this->success(null, '设置已更新');
-=======
-            return DB::transaction(function () use ($request) {
-                $this->siteSettingService->set($request->key, $request->value);
-                return $this->success(null, '设置已更新');
-            });
->>>>>>> origin/ai-05b-interface-reliability-round2
         });
     }
 
@@ -97,16 +93,9 @@ class SiteSettingController extends Controller
                 'settings' => 'required|array',
             ]);
 
-<<<<<<< HEAD
             $this->siteSettingService->batchSet($settings['settings']);
 
             return $this->success(null, '设置已批量更新');
-=======
-            return DB::transaction(function () use ($settings) {
-                $this->siteSettingService->batchSet($settings['settings']);
-                return $this->success(null, '设置已批量更新');
-            });
->>>>>>> origin/ai-05b-interface-reliability-round2
         });
     }
 }
