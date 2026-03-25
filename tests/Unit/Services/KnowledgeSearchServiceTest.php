@@ -100,9 +100,16 @@ class KnowledgeSearchServiceTest extends TestCase
 
     public function test_keyword_match_returns_partial_score(): void
     {
-        // This test verifies partial keyword matching scores between 0 and 100
-        // Note: Actual score depends on word overlap between query and stored question
-        $this->assertTrue(true); // Stub - score calculation is implementation-dependent
+        // Query "玫瑰花" partially matches question "玫瑰如何养护"
+        // "玫瑰花" contains "玫瑰" -> 1 match out of 1 word = 60% of KEYWORD_MATCH_MAX_SCORE (60) = 36
+        Knowledge::factory()->create(['question' => '玫瑰如何养护', 'answer' => '避免阳光直射']);
+
+        $result = $this->service->findBestMatch('玫瑰花');
+
+        $this->assertNotNull($result);
+        $this->assertGreaterThan(20, $result['score']);
+        $this->assertLessThan(80, $result['score']);
+        $this->assertEquals(36, $result['score']);
     }
 
     public function test_get_all_sorted_by_category(): void
