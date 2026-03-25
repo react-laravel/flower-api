@@ -17,6 +17,9 @@ class FlowerController extends Controller
 {
     use ApiResponse, Idempotency, CrudOperations;
 
+    private const DEFAULT_SORT_FIELD = 'created_at';
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -27,7 +30,7 @@ class FlowerController extends Controller
 
         $flowers = Flower::query()
             ->with('user:id,name') // Fix N+1: eager load user relationship
-            ->orderBy('created_at', 'desc')
+            ->orderBy(self::DEFAULT_SORT_FIELD, self::DEFAULT_SORT_DIRECTION)
             ->paginate($filter->perPage);
 
         // Apply filters using FlowerFilter value object (avoids DRY violation)
