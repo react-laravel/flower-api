@@ -143,4 +143,24 @@ class FileStorageServiceTest extends TestCase
 
         $this->assertNotEquals($result1['path'], $result2['path']);
     }
+
+    public function test_validate_path_accepts_valid_uploads_path(): void
+    {
+        $service = new FileStorageService('public');
+
+        // Should not throw for valid paths
+        $service->validatePath('uploads/flower.jpg');
+        $service->validatePath('uploads/subdir/image.png');
+
+        $this->assertTrue(true); // If we got here, validation passed
+    }
+
+    public function test_validate_path_rejects_path_with_tilde(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('无效的文件路径');
+
+        $service = new FileStorageService('public');
+        $service->validatePath('uploads/file~name.jpg');
+    }
 }

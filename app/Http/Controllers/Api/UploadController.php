@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponse;
 use App\Http\Traits\Idempotency;
+use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -13,6 +14,13 @@ use Illuminate\Support\Facades\Storage;
 class UploadController extends Controller
 {
     use ApiResponse, Idempotency;
+
+    private FileStorageService $fileStorage;
+
+    public function __construct()
+    {
+        $this->fileStorage = new FileStorageService();
+    }
 
     public function upload(Request $request): JsonResponse
     {
@@ -59,10 +67,10 @@ class UploadController extends Controller
 
         $rawPath = urldecode($request->path);
 
-        // Must start with uploads/ and contain no path traversal sequences
-        if (!str_starts_with($rawPath, 'uploads/')
-            || str_contains($rawPath, '..')
-            || str_contains($rawPath, '~')) {
+        // Validate path using FileStorageService (avoids DRY violation)
+        try {
+            $this->fileStorage->validatePath($rawPath);
+        } catch (\InvalidArgumentException $e) {
             return $this->error('无效的文件路径', 400);
         }
 

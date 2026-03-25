@@ -32,14 +32,16 @@ class SiteSettingPolicyTest extends TestCase
 
     public function test_update_returns_true_for_admin_user(): void
     {
-        $admin = new User(['is_admin' => true]);
+        $admin = new User();
+        $admin->is_admin = true;
         $setting = new SiteSetting();
         $this->assertTrue($this->policy->update($admin, $setting));
     }
 
     public function test_update_returns_false_for_non_admin_user(): void
     {
-        $user = new User(['is_admin' => false]);
+        $user = new User();
+        $user->is_admin = false;
         $setting = new SiteSetting();
         $this->assertFalse($this->policy->update($user, $setting));
     }

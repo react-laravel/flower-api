@@ -28,6 +28,6 @@ class SiteSettingPolicy
      */
     public function update(User $user, SiteSetting $setting): bool
     {
-        return $user->is_admin;
+        return $user->is_admin === true;
     }
 }

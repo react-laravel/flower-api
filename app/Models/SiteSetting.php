@@ -4,36 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Cache;
 
+/**
+ * Site setting model - data structure only.
+ * All caching and business logic is handled by SiteSettingService to avoid DRY violation.
+ *
+ * @see \App\Services\SiteSettingService
+ */
 class SiteSetting extends Model
 {
     use HasFactory;
+
     protected $fillable = ['key', 'value'];
-
-    protected static $cachePrefix = 'site_setting:';
-    protected static $cacheTtlSeconds = 3600;
-
-    public static function getValue($key, $default = null)
-    {
-        $cacheKey = static::normalizeKey($key);
-
-        return Cache::remember($cacheKey, static::$cacheTtlSeconds, function () use ($key, $default) {
-            $setting = static::where('key', $key)->first();
-            return $setting ? $setting->value : $default;
-        });
-    }
-
-    public static function setValue($key, $value)
-    {
-        $cacheKey = static::normalizeKey($key);
-        Cache::forget($cacheKey);
-
-        return static::updateOrCreate(['key' => $key], ['value' => $value]);
-    }
-
-    protected static function normalizeKey(string $key): string
-    {
-        return static::$cachePrefix . $key;
-    }
 }

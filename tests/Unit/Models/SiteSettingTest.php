@@ -3,8 +3,8 @@
 namespace Tests\Unit\Models;
 
 use App\Models\SiteSetting;
+use App\Services\SiteSettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -46,10 +46,11 @@ class SiteSettingTest extends TestCase
     public function get_value_returns_value_when_exists(): void
     {
         // Arrange
+        $service = new SiteSettingService();
         SiteSetting::create(['key' => 'site_name', 'value' => 'Flower Store']);
 
         // Act
-        $result = SiteSetting::getValue('site_name');
+        $result = $service->get('site_name');
 
         // Assert
         $this->assertEquals('Flower Store', $result);
@@ -58,30 +59,22 @@ class SiteSettingTest extends TestCase
     #[Test]
     public function get_value_returns_default_when_not_exists(): void
     {
-        // Act & Assert
-        $this->assertNull(SiteSetting::getValue('nonexistent'));
-        $this->assertEquals('default', SiteSetting::getValue('nonexistent', 'default'));
-    }
-
-    #[Test]
-    public function get_value_caches_result(): void
-    {
         // Arrange
-        $key = 'cached_key';
-        SiteSetting::create(['key' => $key, 'value' => 'first_value']);
+        $service = new SiteSettingService();
 
-        // Act
-        $first = SiteSetting::getValue($key);
-
-        // Assert — cache should be populated
-        $this->assertEquals('first_value', $first);
+        // Act & Assert
+        $this->assertNull($service->get('nonexistent'));
+        $this->assertEquals('default', $service->get('nonexistent', 'default'));
     }
 
     #[Test]
     public function set_value_creates_new_setting(): void
     {
-        // Arrange & Act
-        SiteSetting::setValue('new_key', 'new_value');
+        // Arrange
+        $service = new SiteSettingService();
+
+        // Act
+        $service->set('new_key', 'new_value');
 
         // Assert
         $this->assertDatabaseHas('site_settings', ['key' => 'new_key', 'value' => 'new_value']);
@@ -91,10 +84,11 @@ class SiteSettingTest extends TestCase
     public function set_value_updates_existing_setting(): void
     {
         // Arrange
+        $service = new SiteSettingService();
         SiteSetting::create(['key' => 'site_name', 'value' => 'Old Name']);
 
         // Act
-        SiteSetting::setValue('site_name', 'New Name');
+        $service->set('site_name', 'New Name');
 
         // Assert
         $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'New Name']);
@@ -104,24 +98,70 @@ class SiteSettingTest extends TestCase
     #[Test]
     public function set_value_returns_model_instance(): void
     {
-        // Arrange & Act
-        $result = SiteSetting::setValue('site_name', 'Test Name');
+        // Arrange
+        $service = new SiteSettingService();
+
+        // Act
+        $result = $service->set('site_name', 'Test Name');
 
         // Assert
         $this->assertInstanceOf(SiteSetting::class, $result);
     }
 
     #[Test]
-    public function set_value_invalidates_cache(): void
+    public function has_returns_true_when_key_exists(): void
     {
         // Arrange
-        $key = 'flush_key';
-        SiteSetting::setValue($key, 'original');
+        $service = new SiteSettingService();
+        SiteSetting::create(['key' => 'existing_key', 'value' => 'value']);
+
+        // Act & Assert
+        $this->assertTrue($service->has('existing_key'));
+        $this->assertFalse($service->has('nonexistent_key'));
+    }
+
+    #[Test]
+    public function delete_removes_setting(): void
+    {
+        // Arrange
+        $service = new SiteSettingService();
+        SiteSetting::create(['key' => 'to_delete', 'value' => 'value']);
 
         // Act
-        SiteSetting::setValue($key, 'updated');
+        $result = $service->delete('to_delete');
 
-        // Assert — cache should be refreshed with new value
-        $this->assertEquals('updated', SiteSetting::getValue($key));
+        // Assert
+        $this->assertTrue($result);
+        $this->assertDatabaseMissing('site_settings', ['key' => 'to_delete']);
+    }
+
+    #[Test]
+    public function get_many_returns_multiple_values(): void
+    {
+        // Arrange
+        $service = new SiteSettingService();
+        SiteSetting::create(['key' => 'key1', 'value' => 'value1']);
+        SiteSetting::create(['key' => 'key2', 'value' => 'value2']);
+
+        // Act
+        $result = $service->getMany(['key1', 'key2', 'key3']);
+
+        // Assert
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2', 'key3' => null], $result);
+    }
+
+    #[Test]
+    public function all_returns_collection(): void
+    {
+        // Arrange
+        $service = new SiteSettingService();
+        SiteSetting::create(['key' => 'key1', 'value' => 'value1']);
+        SiteSetting::create(['key' => 'key2', 'value' => 'value2']);
+
+        // Act
+        $result = $service->all();
+
+        // Assert
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $result->toArray());
     }
 }
