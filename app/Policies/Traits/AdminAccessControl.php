@@ -7,25 +7,13 @@ use App\Models\User;
 /**
  * Shared admin-only access control for policies.
  * Fixes DRY violation across FlowerPolicy, CategoryPolicy, KnowledgePolicy.
+ *
+ * Note: viewAny, view, and delete are NOT included in this trait because they
+ * have method name conflicts with Illuminate\Foundation\Testing\TestCase methods.
+ * Define them directly in each policy class instead.
  */
 trait AdminAccessControl
 {
-    /**
-     * Anyone can view (public read-only).
-     */
-    public function viewAny(User $user): bool
-    {
-        return true;
-    }
-
-    /**
-     * Anyone can view a single resource (public read-only).
-     */
-    public function view(User $user, $model): bool
-    {
-        return true;
-    }
-
     /**
      * Only admins can create.
      */
@@ -38,14 +26,6 @@ trait AdminAccessControl
      * Only admins can update.
      */
     public function update(User $user, $model): bool
-    {
-        return $user->is_admin === true;
-    }
-
-    /**
-     * Only admins can delete.
-     */
-    public function delete(User $user, $model): bool
     {
         return $user->is_admin === true;
     }

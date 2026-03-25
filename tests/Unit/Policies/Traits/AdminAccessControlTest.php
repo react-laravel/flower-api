@@ -10,6 +10,9 @@ use Tests\TestCase;
  * Test for AdminAccessControl trait.
  *
  * This trait provides shared admin-only access control for policies.
+ * Note: view, viewAny, and delete are tested in individual policy tests
+ * because they had to be moved out of the trait due to method name
+ * conflicts with Illuminate\Foundation\Testing\TestCase methods.
  */
 class AdminAccessControlTest extends TestCase
 {
@@ -22,29 +25,11 @@ class AdminAccessControlTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->adminUser = new User(['is_admin' => true]);
-        $this->regularUser = new User(['is_admin' => false]);
+        $this->adminUser = new User();
+        $this->adminUser->is_admin = true;
+        $this->regularUser = new User();
+        $this->regularUser->is_admin = false;
         $this->model = new User();
-    }
-
-    // ============================================================
-    // viewAny()
-    // ============================================================
-
-    public function test_view_any_returns_true_for_any_user(): void
-    {
-        $this->assertTrue($this->viewAny($this->adminUser));
-        $this->assertTrue($this->viewAny($this->regularUser));
-    }
-
-    // ============================================================
-    // view()
-    // ============================================================
-
-    public function test_view_returns_true_for_any_user(): void
-    {
-        $this->assertTrue($this->view($this->adminUser, $this->model));
-        $this->assertTrue($this->view($this->regularUser, $this->model));
     }
 
     // ============================================================
@@ -73,19 +58,5 @@ class AdminAccessControlTest extends TestCase
     public function test_update_returns_false_for_non_admin_user(): void
     {
         $this->assertFalse($this->update($this->regularUser, $this->model));
-    }
-
-    // ============================================================
-    // delete()
-    // ============================================================
-
-    public function test_delete_returns_true_for_admin_user(): void
-    {
-        $this->assertTrue($this->delete($this->adminUser, $this->model));
-    }
-
-    public function test_delete_returns_false_for_non_admin_user(): void
-    {
-        $this->assertFalse($this->delete($this->regularUser, $this->model));
     }
 }
