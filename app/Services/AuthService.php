@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Hashing\Hasher;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -44,11 +45,13 @@ class AuthService
      */
     public function register(string $name, string $email, string $password): User
     {
-        return User::create([
-            'name' => $name,
-            'email' => $email,
-            'password' => $this->hasher->make($password),
-        ]);
+        return DB::transaction(function () use ($name, $email, $password) {
+            return User::create([
+                'name' => $name,
+                'email' => $email,
+                'password' => $this->hasher->make($password),
+            ]);
+        });
     }
 
     /**

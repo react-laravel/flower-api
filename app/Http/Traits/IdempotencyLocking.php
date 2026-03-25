@@ -14,18 +14,22 @@ trait IdempotencyLocking
 
     /**
      * Acquire a lock for the idempotency key.
-     * Returns true if lock was acquired, false if another request holds it.
+     * Returns the lock token if acquired, false if another request holds it.
      */
-    protected function acquireLock(string $idempotencyKey, int $ttlSeconds = 30): bool
+    protected function acquireLock(string $idempotencyKey, int $ttlSeconds = 30): string|false
     {
         return $this->idempotencyService->acquireLock($idempotencyKey, $ttlSeconds);
     }
 
     /**
      * Release the lock for the idempotency key.
+     *
+     * @param string $idempotencyKey The idempotency key
+     * @param string $token The lock token (must match the token used to acquire)
+     * @return bool True if released, false if token mismatch
      */
-    protected function releaseLock(string $idempotencyKey): void
+    protected function releaseLock(string $idempotencyKey, string $token): bool
     {
-        $this->idempotencyService->releaseLock($idempotencyKey);
+        return $this->idempotencyService->releaseLock($idempotencyKey, $token);
     }
 }

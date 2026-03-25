@@ -57,7 +57,8 @@ class IdempotencyReliabilityTest extends TestCase
 
         // Simulate an active request holding the lock
         $idempotencyService = new IdempotencyService();
-        $this->assertTrue($idempotencyService->acquireLock($idempotencyKey, 30));
+        $lockToken = $idempotencyService->acquireLock($idempotencyKey, 30);
+        $this->assertNotFalse($lockToken);
 
         // Concurrent request should get 409 (lock is held, isProcessed is false)
         $response = $this->adminRequest()->postJson('/api/flowers', [
@@ -75,7 +76,7 @@ class IdempotencyReliabilityTest extends TestCase
         ], ['X-Idempotency-Key' => $idempotencyKey]);
 
         $response->assertStatus(409);
-        $idempotencyService->releaseLock($idempotencyKey);
+        $idempotencyService->releaseLock($idempotencyKey, $lockToken);
     }
 
     /**
@@ -338,6 +339,29 @@ class IdempotencyReliabilityTest extends TestCase
     }
 
     /**
+     * Test that IdempotencyService::releaseLock only succeeds with correct token.
+     */
+    public function test_idempotency_lock_token_mismatch_prevents_release(): void
+    {
+        $idempotencyKey = 'idempotency-token-mismatch-' . uniqid();
+        $service = new IdempotencyService();
+
+        $token = $service->acquireLock($idempotencyKey, 30);
+        $this->assertNotFalse($token);
+        $this->assertTrue($service->isLocked($idempotencyKey));
+
+        // Wrong token cannot release
+        $released = $service->releaseLock($idempotencyKey, 'wrong-token');
+        $this->assertFalse($released);
+        $this->assertTrue($service->isLocked($idempotencyKey)); // lock still held
+
+        // Correct token releases
+        $released = $service->releaseLock($idempotencyKey, $token);
+        $this->assertTrue($released);
+        $this->assertFalse($service->isLocked($idempotencyKey));
+    }
+
+    /**
      * Test that when a lock is actively held (not yet released),
      * withLock returns false for a concurrent request.
      */
@@ -556,7 +580,8 @@ class IdempotencyReliabilityTest extends TestCase
 
         $idempotencyKey = 'upload-concurrent-' . uniqid();
         $idempotencyService = new IdempotencyService();
-        $idempotencyService->acquireLock($idempotencyKey, 30);
+        $lockToken = $idempotencyService->acquireLock($idempotencyKey, 30);
+        $this->assertNotFalse($lockToken);
 
         $file = UploadedFile::fake()->image('flower.jpg', 800, 600);
 
@@ -566,7 +591,7 @@ class IdempotencyReliabilityTest extends TestCase
 
         $response->assertStatus(409);
 
-        $idempotencyService->releaseLock($idempotencyKey);
+        $idempotencyService->releaseLock($idempotencyKey, $lockToken);
     }
 
     // -------------------------------------------------------------------------
@@ -635,7 +660,8 @@ class IdempotencyReliabilityTest extends TestCase
     {
         $idempotencyKey = 'register-concurrent-' . uniqid();
         $idempotencyService = new IdempotencyService();
-        $idempotencyService->acquireLock($idempotencyKey, 30);
+        $lockToken = $idempotencyService->acquireLock($idempotencyKey, 30);
+        $this->assertNotFalse($lockToken);
 
         $response = $this->postJson('/api/auth/register', [
             'name' => 'Concurrent User',
@@ -646,6 +672,6 @@ class IdempotencyReliabilityTest extends TestCase
 
         $response->assertStatus(409);
 
-        $idempotencyService->releaseLock($idempotencyKey);
+        $idempotencyService->releaseLock($idempotencyKey, $lockToken);
     }
 }

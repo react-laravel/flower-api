@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SiteSetting;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Site setting service handling configuration business logic.
@@ -84,10 +85,12 @@ class SiteSettingService
      */
     public function batchSet(array $settings): void
     {
-        foreach ($settings as $key => $value) {
-            SiteSetting::updateOrCreate(['key' => $key], ['value' => $value]);
-            Cache::forget(self::CACHE_KEY_PREFIX . $key);
-        }
+        DB::transaction(function () use ($settings) {
+            foreach ($settings as $key => $value) {
+                SiteSetting::updateOrCreate(['key' => $key], ['value' => $value]);
+                Cache::forget(self::CACHE_KEY_PREFIX . $key);
+            }
+        });
     }
 
     /**

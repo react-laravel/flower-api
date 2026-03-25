@@ -80,7 +80,8 @@ trait Idempotency
         // Always try to acquire lock first — this serializes ALL requests (new AND retries)
         // with the same idempotency key, preventing race conditions where concurrent
         // new requests both execute the handler simultaneously.
-        if (!$this->acquireLock($idempotencyKey, 30)) {
+        $lockToken = $this->acquireLock($idempotencyKey, 30);
+        if (!$lockToken) {
             return $this->handleLockNotAcquired($idempotencyKey);
         }
 
@@ -88,7 +89,7 @@ trait Idempotency
         try {
             return $this->executeHandlerWithIdempotency($idempotencyKey, $handler);
         } finally {
-            $this->releaseLock($idempotencyKey);
+            $this->releaseLock($idempotencyKey, $lockToken);
         }
     }
 

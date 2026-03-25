@@ -60,24 +60,49 @@ class IdempotencyService
 
     /**
      * Acquire a lock for processing (atomic operation)
+     *
+     * @return string|false Returns lock token if acquired, false if already held
      */
-    public function acquireLock(string $key, int $ttl = 30): bool
+    public function acquireLock(string $key, int $ttl = 30): string|false
     {
+        $lockToken = uniqid('lock_', true);
         $lockKey = $this->getLockKey($key);
         // Use add() for atomic lock acquisition (SETNX behavior)
         // Returns true if lock was acquired, false if already held
-        return $this->cache()->add($lockKey, [
+        $acquired = $this->cache()->add($lockKey, [
+            'token' => $lockToken,
             'locked_at' => now()->toIso8601String(),
-            'owner' => uniqid('lock_', true),
         ], $ttl);
+
+        if ($acquired) {
+            return $lockToken;
+        }
+
+        return false;
     }
 
     /**
-     * Release a lock
+     * Release a lock (only if owned by the given token)
+     *
+     * @return bool True if released, false if lock was not owned by this token
      */
-    public function releaseLock(string $key): void
+    public function releaseLock(string $key, string $token): bool
     {
-        $this->cache()->forget($this->getLockKey($key));
+        $lockKey = $this->getLockKey($key);
+        $lockData = $this->cache()->get($lockKey);
+
+        if (!$lockData) {
+            return false;
+        }
+
+        // Verify ownership before releasing
+        if ($lockData['token'] !== $token) {
+            return false;
+        }
+
+        $this->cache()->forget($lockKey);
+
+        return true;
     }
 
     /**
