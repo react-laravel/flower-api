@@ -12,6 +12,17 @@ class ChatService
 {
     private const CACHE_TTL_SECONDS = 300; // 5 minutes
 
+    /** Fallback response suggestions shown when no knowledge match is found */
+    private const FALLBACK_SUGGESTIONS = [
+        '鲜花如何保鲜？',
+        '玫瑰的花语是什么？',
+        '如何订花？',
+        '配送范围和时间？',
+    ];
+
+    private const FALLBACK_GREETING = '感谢您的咨询！您可能想了解：';
+    private const FALLBACK_CLOSING = "请告诉我您想了解的具体问题，我会尽力为您解答~ 🌸";
+
     private KnowledgeSearchService $searchService;
 
     public function __construct(KnowledgeSearchService $searchService)
@@ -48,11 +59,13 @@ class ChatService
      */
     private function getFallbackResponse(): string
     {
-        return "感谢您的咨询！您可能想了解：\n\n"
-            . "1. 鲜花如何保鲜？\n"
-            . "2. 玫瑰的花语是什么？\n"
-            . "3. 如何订花？\n"
-            . "4. 配送范围和时间？\n\n"
-            . "请告诉我您想了解的具体问题，我会尽力为您解答~ 🌸";
+        $lines = [self::FALLBACK_GREETING, ''];
+        foreach (self::FALLBACK_SUGGESTIONS as $i => $suggestion) {
+            $lines[] = ($i + 1) . '. ' . $suggestion;
+        }
+        $lines[] = '';
+        $lines[] = self::FALLBACK_CLOSING;
+
+        return implode("\n", $lines);
     }
 }
