@@ -34,22 +34,11 @@ class UploadController extends Controller
 
         return $this->handleIdempotentRequest($request, function () use ($request) {
             $file = $request->file('image');
-
-            // Generate unique filename
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
-            // Store in public/uploads directory
-            $path = $file->storeAs('uploads', $filename, 'public');
-
-            // Return the URL
-            $url = Storage::url($path);
+            $result = $this->fileStorage->upload($file);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'url' => $url,
-                    'path' => $path,
-                ],
+                'data' => $result,
                 'message' => '文件上传成功',
             ], 200);
         });

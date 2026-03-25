@@ -16,8 +16,6 @@ class ChatController extends Controller
 {
     use ApiResponse;
 
-    private const QUERY_TIMEOUT_SECONDS = 5;
-
     private ChatService $chatService;
 
     public function __construct(ChatService $chatService)

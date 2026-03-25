@@ -2,7 +2,6 @@
 
 namespace App\Http\Traits;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -19,9 +18,6 @@ trait ResourceListTrait
      */
     protected function listAll(string $modelClass, string $orderBy = 'category'): JsonResponse
     {
-        /** @var Model $instance */
-        $instance = new $modelClass();
-
         $items = $modelClass::orderBy($orderBy)->get();
 
         return $this->success($items);

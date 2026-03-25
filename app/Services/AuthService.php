@@ -67,4 +67,12 @@ class AuthService
         $user->currentAccessToken()->delete();
     }
 
+    /**
+     * Check if user is an admin.
+     */
+    public function isAdmin(Authenticatable $user): bool
+    {
+        return (bool) $user->is_admin;
+    }
+
 }
