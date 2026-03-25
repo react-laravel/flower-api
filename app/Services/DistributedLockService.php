@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class DistributedLockService
 {
     private const DEFAULT_LOCK_TTL = 30; // seconds
+    private const CACHE_KEY_PREFIX = 'distributed_lock:';
     private string $cacheStore;
 
     public function __construct(string $cacheStore = null)
@@ -132,6 +133,6 @@ class DistributedLockService
      */
     private function getLockKey(string $key): string
     {
-        return 'distributed_lock:' . $key;
+        return self::CACHE_KEY_PREFIX . $key;
     }
 }

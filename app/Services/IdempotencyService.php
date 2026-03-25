@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Cache;
 class IdempotencyService
 {
     private const DEFAULT_TTL = 86400; // 24 hours
+    private const CACHE_KEY_PREFIX = 'idempotency:';
+    private const LOCK_KEY_PREFIX = 'idempotency_lock:';
     private string $cacheStore;
 
     public function __construct(string $cacheStore = null)
@@ -85,7 +87,7 @@ class IdempotencyService
      */
     private function getCacheKey(string $key): string
     {
-        return 'idempotency:' . $key;
+        return self::CACHE_KEY_PREFIX . $key;
     }
 
     /**
@@ -93,6 +95,6 @@ class IdempotencyService
      */
     private function getLockKey(string $key): string
     {
-        return 'idempotency_lock:' . $key;
+        return self::LOCK_KEY_PREFIX . $key;
     }
 }
