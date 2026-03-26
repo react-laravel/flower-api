@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -62,6 +63,24 @@ class AuthServiceTest extends TestCase
             'name' => 'New User',
         ]);
         $this->assertTrue(Hash::check('password123', $user->password));
+    }
+
+    /**
+     * Test that register() uses DB::transaction for atomicity.
+     */
+    public function test_register_uses_database_transaction(): void
+    {
+        // Spy on DB::transaction to verify it's called
+        DB::shouldReceive('transaction')
+            ->once()
+            ->andReturnUsing(function ($callback) {
+                return $callback();
+            });
+
+        $user = $this->service->register('Transactional User', 'tx@example.com', 'password123');
+
+        $this->assertEquals('Transactional User', $user->name);
+        $this->assertEquals('tx@example.com', $user->email);
     }
 
     public function test_create_token_returns_string(): void

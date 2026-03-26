@@ -4,8 +4,10 @@ namespace Tests\Unit\Services;
 
 use App\Models\SiteSetting;
 use App\Services\SiteSettingService;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SiteSettingServiceTest extends TestCase
@@ -186,5 +188,49 @@ class SiteSettingServiceTest extends TestCase
         $this->service->delete('to_delete');
 
         $this->assertFalse($this->service->has('to_delete'));
+    }
+
+    /**
+     * Test that set() uses DB::transaction for atomicity.
+     * We verify this by checking the operation completes successfully
+     * and wraps the database operation in a transaction.
+     */
+    public function test_set_uses_database_transaction(): void
+    {
+        $key = 'transaction_test_' . uniqid();
+
+        // Spy on DB::transaction to verify it's called
+        DB::shouldReceive('transaction')
+            ->once()
+            ->andReturnUsing(function ($callback) {
+                return $callback();
+            });
+
+        $result = $this->service->set($key, 'transactional_value');
+
+        $this->assertEquals($key, $result->key);
+        $this->assertEquals('transactional_value', $result->value);
+    }
+
+    /**
+     * Test that batchSet() uses DB::transaction for atomicity.
+     * When transaction is used, all settings should be committed or none.
+     */
+    public function test_batch_set_uses_database_transaction(): void
+    {
+        // Spy on DB::transaction to verify it's called
+        DB::shouldReceive('transaction')
+            ->once()
+            ->andReturnUsing(function ($callback) {
+                return $callback();
+            });
+
+        $this->service->batchSet([
+            'batch_tx_key1' => 'value1',
+            'batch_tx_key2' => 'value2',
+        ]);
+
+        $this->assertEquals('value1', $this->service->get('batch_tx_key1'));
+        $this->assertEquals('value2', $this->service->get('batch_tx_key2'));
     }
 }
