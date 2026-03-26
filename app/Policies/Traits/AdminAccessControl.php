@@ -21,7 +21,7 @@ trait AdminAccessControl
     /**
      * Anyone can view a single resource (public read-only).
      */
-    public function view(User $user, $model): bool
+    public function viewResource(User $user, $model): bool
     {
         return true;
     }
@@ -37,7 +37,7 @@ trait AdminAccessControl
     /**
      * Only admins can update.
      */
-    public function update(User $user, $model): bool
+    public function updateResource(User $user, $model): bool
     {
         return $user->is_admin === true;
     }
@@ -45,7 +45,7 @@ trait AdminAccessControl
     /**
      * Only admins can delete.
      */
-    public function delete(User $user, $model): bool
+    public function deleteResource(User $user, $model): bool
     {
         return $user->is_admin === true;
     }
