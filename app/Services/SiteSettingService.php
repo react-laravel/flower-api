@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SiteSetting;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Site setting service handling configuration business logic.
@@ -31,18 +32,21 @@ class SiteSettingService
 
     /**
      * Set a setting value.
+     * Uses DB::transaction to ensure atomicity of the update operation.
      */
     public function set(string $key, mixed $value): SiteSetting
     {
-        $setting = SiteSetting::updateOrCreate(
-            ['key' => $key],
-            ['value' => $value]
-        );
+        return DB::transaction(function () use ($key, $value) {
+            $setting = SiteSetting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value]
+            );
 
-        // Bust the cache so next get() reflects the new value
-        Cache::forget(self::CACHE_KEY_PREFIX . $key);
+            // Bust the cache so next get() reflects the new value
+            Cache::forget(self::CACHE_KEY_PREFIX . $key);
 
-        return $setting;
+            return $setting;
+        });
     }
 
     /**
@@ -77,15 +81,22 @@ class SiteSettingService
     }
 
     /**
-     * Batch update multiple settings.
-     * Invalidates cache for each updated key.
+     * Batch update multiple settings atomically.
+     * Uses DB::transaction to ensure all-or-nothing update.
+     * Invalidates cache for each updated key after commit.
      *
      * @param array<string, mixed> $settings
      */
     public function batchSet(array $settings): void
     {
+        DB::transaction(function () use ($settings) {
+            foreach ($settings as $key => $value) {
+                SiteSetting::updateOrCreate(['key' => $key], ['value' => $value]);
+            }
+        });
+
+        // Invalidate cache after transaction commits (outside transaction)
         foreach ($settings as $key => $value) {
-            SiteSetting::updateOrCreate(['key' => $key], ['value' => $value]);
             Cache::forget(self::CACHE_KEY_PREFIX . $key);
         }
     }
